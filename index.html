@@ -255,7 +255,10 @@ function first(name){ return String(name||'').split(' ').slice(0,2).join(' '); }
 
 async function refresh(silent){
   try {
-    const b = await rpc('get_bundle', {p_token: S.token});
+    const old = S.bundle, args = {p_token: S.token};
+    if (old && old.tt_ver != null && old.schedule) args.p_ver = old.tt_ver;
+    let b = await rpc('get_bundle', args);
+    if (b.same) { const {same, ...rest} = b; b = {...old, ...rest}; }
     S.bundle = b; store.set('ts_bundle', b); S.I = buildIndex(b);
   } catch(e){
     if (e.code === 'no_session'){ logout(); return; }
