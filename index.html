@@ -231,7 +231,7 @@ async function rpc(fn, args){
   const r = await fetch(SB_URL + '/rest/v1/rpc/' + fn, {method:'POST',
     headers:{'Content-Type':'application/json', apikey: SB_KEY, Authorization:'Bearer ' + SB_KEY}, body: JSON.stringify(args || {})});
   const txt = await r.text(); let j = null; try { j = txt ? JSON.parse(txt) : null; } catch(e){}
-  if (!r.ok){ const code = (j && j.message) || 'error'; const e = new Error(ERR[code] || 'حصل خطأ، جرّب تاني'); e.code = code; throw e; }
+  if (!r.ok){ const code = (j && j.message) || 'error'; const e = new Error(ERR[code] || ('حصل خطأ، جرّب تاني' + (code !== 'error' ? ' (' + String(code).slice(0, 80) + ')' : ''))); e.code = code; throw e; }
   return j;
 }
 function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('on'), 2200); }
