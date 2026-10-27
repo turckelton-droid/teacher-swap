@@ -83,6 +83,10 @@ nav.tabs svg{width:22px;height:22px}
 h2{font-size:17px;margin:22px 0 8px}
 .sec{padding:14px}
 .hide{display:none!important}
+.selbtn.on{background:var(--pri);color:var(--pri-ink);border-color:var(--pri)}
+.sendbar{position:sticky;bottom:0;background:var(--bg);padding:10px 0 4px}
+.card.mine{border-color:var(--pri)}
+.tag.g{background:var(--line);color:var(--muted)}
 .linkbtn{background:none;border:0;color:var(--pri);cursor:pointer;padding:8px;font-size:14px}
 </style>
 </head>
@@ -154,14 +158,19 @@ function buildIndex(B){
     if (f.kind === 'appointment' && f.on_date) (f.periods||[]).forEach(p => appt.add(f.teacher_id+'|'+f.on_date+'|'+p));
     if (f.kind === 'behind' && f.class_id) (behind[f.teacher_id] = behind[f.teacher_id] || new Set()).add(f.class_id);
   });
+  const covering = new Set(), slotReq = {};
+  (B.requests||[]).forEach(r => {
+    if (r.status === 'accepted' && r.by) covering.add(r.by+'|'+r.date+'|'+r.p);
+    if (r.status === 'pending' || r.status === 'accepted') slotReq[r.from+'|'+r.date+'|'+r.p] = r;
+  });
   const T = {}; B.teachers.forEach(t => T[t.id] = t);
   const C = {}; B.classes.forEach(c => C[c.id] = c.name);
   const S = {}; B.subjects.forEach(s => S[s.id] = s.name);
   const P = {}; B.periods.forEach(p => P[p.period] = p);
   const D = {}; B.days.forEach(d => D[d.day] = d.name);
   const loadOn = (t,d) => (byTeacher[t]||[]).filter(x => x.d === d).length;
-  const isFree = (t,d,p,date) => !busy.has(t+'|'+d+'|'+p) && !(date && appt.has(t+'|'+date+'|'+p));
-  return {busy, byTeacher, classTeachers, slotsOf, appt, behind, T, C, S, P, D, loadOn, isFree};
+  const isFree = (t,d,p,date) => !busy.has(t+'|'+d+'|'+p) && !(date && (appt.has(t+'|'+date+'|'+p) || covering.has(t+'|'+date+'|'+p)));
+  return {busy, byTeacher, classTeachers, slotsOf, appt, behind, covering, slotReq, T, C, S, P, D, loadOn, isFree};
 }
 
 function coverCandidates(I, me, date, p, cls){
@@ -218,7 +227,13 @@ const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const DAY_FALLBACK = {1:'الأحد',2:'الإثنين',3:'الثلاثاء',4:'الأربعاء',5:'الخميس'};
 const ERR = {pin_format:'يجب أن يتكون الرمز من 4 أرقام', already_set:'هذا الحساب مُفعَّل مسبقًا. ادخل برمزك، أو اطلب من المشرف إعادة تعيينه',
   no_account:'الحساب غير مُفعَّل', locked:'محاولات خاطئة كثيرة. حاول بعد ربع ساعة', bad_pin:'الرمز غير صحيح', no_session:'انتهت الجلسة، سجّل الدخول مجددًا',
-  not_admin:'للمشرف فقط', date_required:'اختر اليوم والحصص', class_required:'اختر الصف'};
+  not_admin:'للمشرف فقط', date_required:'اختر اليوم والحصص', class_required:'اختر الصف',
+  too_late:'بدأ وقت هذه الحصة', no_lesson:'لا توجد لديك حصة في هذا الوقت', targets_required:'اختر زميلًا واحدًا على الأقل',
+  too_many_targets:'اختر 15 زميلًا على الأكثر', already_requested:'أرسلت طلبًا لهذه الحصة من قبل', not_found:'الطلب غير موجود',
+  not_target:'هذا الطلب غير موجّه إليك', not_pending:'لم يعد الطلب متاحًا؛ ربما قبله زميل آخر أو أُلغي', not_free:'لست متفرغًا في هذه الحصة',
+  not_active:'الطلب لم يعد نشطًا', not_allowed:'لا يمكنك إلغاء هذا الطلب'};
+const KIND = {cover:'تأمين', swap:'تبديل'};
+const APP_URL = location.origin + location.pathname;
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -252,6 +267,11 @@ function fmtDate(s){ const d = parseIso(s); return d.getDate() + '/' + (d.getMon
 function pTime(p){ const x = S.I.P[p]; return x ? (x.start || x.starttime || '') : ''; }
 function tName(t){ return (S.I.T[t] && (S.I.T[t].name)) || '—'; }
 function first(name){ return String(name||'').split(' ').slice(0,2).join(' '); }
+function started(date, p){ const t = String(pTime(p)||'7:00').split(':').map(Number), d = parseIso(date); d.setHours(t[0]||0, t[1]||0, 0, 0); return d <= new Date(); }
+function reqs(){ return (S.bundle && S.bundle.requests) || []; }
+function incoming(){ const me = S.bundle.me; return reqs().filter(r => r.status === 'pending' && !started(r.date, r.p) && r.to.some(x => x.t === me && x.r === 'pending')); }
+function reqWhen(r){ return `${dayName(dayOf(r.date))} ${fmtDate(r.date)} الحصة ${r.p}`; }
+function waBtn(t, msg, label){ const l = waLink(t, msg); return l ? `<a class="btn wa sm" href="${l}" target="_blank" rel="noopener" style="text-align:center;text-decoration:none">${label||'واتساب'}</a>` : ''; }
 
 async function refresh(silent){
   try {
@@ -340,16 +360,17 @@ function route(){
   if (S.bundle.is_admin) return renderAdmin();
   document.body.style.paddingBottom = '';
   if (!S.date || S.date < today() || !dayOf(S.date)) S.date = schoolDates(today(), 1)[0];
-  const opp = opportunities(S.I, S.bundle, S.bundle.me, today()).length;
+  const opp = opportunities(S.I, S.bundle, S.bundle.me, today()).length, inc = incoming().length;
   const me = S.I.T[S.bundle.me];
   $('#app').innerHTML = `<div class="wrap"><header class="top"><h1>${esc(me ? first(me.name) : '')}</h1><div class="sub" id="sub"></div></header><main id="main"></main></div>
   <nav class="tabs">
     <button data-t="day" class="${S.tab==='day'?'on':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>حصصي</button>
-    <button data-t="opp" class="${S.tab==='opp'?'on':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3l4 4-4 4M21 7H8M7 21l-4-4 4-4M3 17h13"/></svg><span>طلبات الزملاء${opp ? `<span class="badge">${opp}</span>` : ''}</span></button>
+    <button data-t="req" class="${S.tab==='req'?'on':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H8l-4 4z"/></svg><span>طلباتي${inc ? `<span class="badge">${inc}</span>` : ''}</span></button>
+    <button data-t="opp" class="${S.tab==='opp'?'on':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3l4 4-4 4M21 7H8M7 21l-4-4 4-4M3 17h13"/></svg><span>مواعيد الزملاء${opp ? `<span class="badge">${opp}</span>` : ''}</span></button>
     <button data-t="me" class="${S.tab==='me'?'on':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/></svg>حالتي</button>
   </nav>`;
   document.querySelector('nav.tabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.tab = b.dataset.t; route(); };
-  ({day: renderDay, opp: renderOpp, me: renderMe})[S.tab]();
+  ({day: renderDay, req: renderReq, opp: renderOpp, me: renderMe})[S.tab]();
 }
 
 function renderDay(){
@@ -360,12 +381,18 @@ function renderDay(){
   const per = S.bundle.periods.length ? S.bundle.periods.map(p => p.period) : [1,2,3,4,5,6,7];
   $('#main').innerHTML = `<div class="chips">${dates.map(x => `<button class="chip ${x===S.date?'on':''}" data-d="${x}">${esc(dayName(dayOf(x)))}<span class="d">${x===today()?'اليوم':fmtDate(x)}</span></button>`).join('')}</div>
     <div id="slots">${per.map(p => { const l = mine.find(x => x.p === p);
-      if (!l) return `<div class="slot free"><div class="n">${p}</div><div class="b small">فراغ${pTime(p)?' · '+esc(pTime(p)):''}</div></div>`;
-      return `<div class="card slot" data-p="${p}"><div class="n">${p}</div><div class="b"><div class="t">${esc(I.C[l.c]||l.c)} ${myAppts.has(p)?'<span class="tag w">لديك موعد</span>':''}</div>
+      if (!l){
+        const cv = reqs().find(r => r.status === 'accepted' && r.by === me && r.date === S.date && r.p === p);
+        if (cv) return `<div class="card slot mine" data-r="${cv.id}"><div class="n">${p}</div><div class="b"><div class="t">${esc(I.C[cv.c]||cv.c)} <span class="tag o">تؤمّنها</span></div><div class="muted small">عن أ. ${esc(first(tName(cv.from)))} · ${esc(pTime(p))}</div></div></div>`;
+        return `<div class="slot free"><div class="n">${p}</div><div class="b small">فراغ${pTime(p)?' · '+esc(pTime(p)):''}</div></div>`;
+      }
+      const rq = I.slotReq[me+'|'+S.date+'|'+p];
+      const rtag = !rq ? '' : rq.status === 'accepted' ? `<span class="tag o">${KIND[rq.kind]}: أ. ${esc(first(tName(rq.by)))}</span>` : '<span class="tag w">طلب بانتظار الرد</span>';
+      return `<div class="card slot" data-p="${p}"><div class="n">${p}</div><div class="b"><div class="t">${esc(I.C[l.c]||l.c)} ${myAppts.has(p)?'<span class="tag w">لديك موعد</span>':''}${rtag}</div>
         <div class="muted small">${esc(I.S[l.s]||'')} · ${esc(pTime(p))}</div></div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted)"><path d="M15 6l-6 6 6 6"/></svg></div>`; }).join('')}
     ${mine.length ? '' : '<div class="empty">لا توجد حصص في هذا اليوم</div>'}</div>`;
   $('#main').querySelector('.chips').onclick = e => { const c = e.target.closest('.chip'); if (!c) return; S.date = c.dataset.d; renderDay(); };
-  $('#slots').onclick = e => { const s = e.target.closest('.slot[data-p]'); if (s) openSlot(+s.dataset.p); };
+  $('#slots').onclick = e => { const r = e.target.closest('.slot[data-r]'); if (r){ S.tab = 'req'; route(); return; } const s = e.target.closest('.slot[data-p]'); if (s) openSlot(+s.dataset.p); };
   const on = $('#main').querySelector('.chip.on'); on && on.scrollIntoView({inline:'center', block:'nearest'});
 }
 
@@ -373,45 +400,153 @@ function openSheet(html){ $('#sheetBody').innerHTML = html; $('#sheetBg').style.
 function closeSheet(){ $('#sheet').classList.remove('open'); $('#sheetBg').style.display = 'none'; }
 $('#sheetBg').onclick = closeSheet;
 
-function candCard(t, why, msg, tags){
+function candCard(t, why, msg, tags, sel){
   const link = waLink(t, msg);
+  const selBtn = sel ? `<button class="btn ghost sm selbtn ${sel.on?'on':''}" data-sel="${esc(t)}">${sel.on ? '✓ مختار' : 'اختيار'}</button>` : '';
   return `<div class="card cand"><div class="row"><div class="nm">${esc(tName(t))}</div>${tags||''}</div><div class="why">${why}</div>
-    <div class="acts">${link ? `<a class="btn wa sm" href="${link}" target="_blank" rel="noopener" style="text-align:center;text-decoration:none">واتساب</a>` : `<button class="btn sm ghost" disabled>لا يوجد رقم</button>`}
-    <button class="btn ghost sm" data-copy="${esc(msg)}">نسخ الرسالة</button></div></div>`;
+    <div class="acts">${selBtn}${link ? `<a class="btn wa sm" href="${link}" target="_blank" rel="noopener" style="text-align:center;text-decoration:none">واتساب</a>` : `<button class="btn sm ghost" disabled>لا يوجد رقم</button>`}
+    ${sel ? '' : `<button class="btn ghost sm" data-copy="${esc(msg)}">نسخ الرسالة</button>`}</div></div>`;
 }
 
-function openSlot(p, mode){
+let PICK = new Set();
+function openSlot(p, mode, keep){
   const I = S.I, me = S.bundle.me, date = S.date, d = dayOf(date);
   const l = (I.byTeacher[me]||[]).find(x => x.d === d && x.p === p); if (!l) return;
-  mode = mode || 'cover';
+  mode = mode || 'cover'; if (!keep) PICK = new Set();
   const cls = I.C[l.c] || l.c, myName = first(tName(me));
   const when = `${dayName(d)} ${fmtDate(date)} الحصة ${p}`;
-  let body = '';
+  const head = `<div style="font-weight:700;font-size:17px">${esc(cls)} · ${esc(I.S[l.s]||'')}</div><div class="muted small">${esc(when)}${pTime(p)?' · '+esc(pTime(p)):''}</div>`;
+  const rq = I.slotReq[me+'|'+date+'|'+p];
+  if (rq) return openReqStatus(rq, head);
+  const late = started(date, p);
+  let body = '', msgs = {};
   if (mode === 'cover'){
     const list = coverCandidates(I, me, date, p, l.c);
     body = list.length ? list.slice(0, 25).map(x => {
       const tags = (x.isBehind ? '<span class="tag w">متأخر مع الصف</span>' : '') + (x.teaches && !x.isBehind ? '<span class="tag o">يدرّس الصف</span>' : '');
-      const msg = `السلام عليكم أ. ${first(tName(x.t))}، هل يمكنك تأمين حصتي مع الصف ${cls} يوم ${when}${pTime(p)?' ('+pTime(p)+')':''}؟` + (x.isBehind || x.teaches ? ' ويمكنك استثمارها في مادتك مع الصف.' : '') + ` شكرًا لك — ${myName}`;
-      return candCard(x.t, `متفرغ في هذا الوقت · لديه ${x.load} حصص في اليوم`, msg, tags);
+      const msg = msgs[x.t] = `السلام عليكم أ. ${first(tName(x.t))}، هل يمكنك تأمين حصتي مع الصف ${cls} يوم ${when}${pTime(p)?' ('+pTime(p)+')':''}؟` + (x.isBehind || x.teaches ? ' ويمكنك استثمارها في مادتك مع الصف.' : '') + ` أرسلت لك الطلب في مساعد المعلم: ${APP_URL} شكرًا لك — ${myName}`;
+      return candCard(x.t, `متفرغ في هذا الوقت · لديه ${x.load} حصص في اليوم`, msg, tags, late ? null : {on: PICK.has(x.t)});
     }).join('') : '<div class="empty">لا يوجد معلم متفرغ في هذه الحصة</div>';
   } else {
-    const list = swapCandidates(I, me, date, p, l.c, today());
+    const list = swapCandidates(I, me, date, p, l.c, today()), seen = new Set();
     body = list.length ? list.slice(0, 25).map(x => {
       const w2 = `${dayName(x.d2)} ${fmtDate(x.date2)} الحصة ${x.p2}`;
-      const msg = `السلام عليكم أ. ${first(tName(x.t))}، هل يمكننا تبديل حصتين؟ تأخذ حصتي مع الصف ${cls} يوم ${when}، وآخذ حصتك مع الصف نفسه يوم ${w2}. شكرًا لك — ${myName}`;
-      return candCard(x.t, `يأخذ حصتك، وتأخذ حصته <b>${esc(w2)}</b> (${esc(I.S[x.subj]||'')})`, msg, x.isBehind ? '<span class="tag w">متأخر مع الصف</span>' : '');
+      const msg = `السلام عليكم أ. ${first(tName(x.t))}، هل يمكننا تبديل حصتين؟ تأخذ حصتي مع الصف ${cls} يوم ${when}، وآخذ حصتك مع الصف نفسه يوم ${w2}. أرسلت لك الطلب في مساعد المعلم: ${APP_URL} شكرًا لك — ${myName}`;
+      if (!msgs[x.t]) msgs[x.t] = msg;
+      const canSel = !late && !seen.has(x.t); seen.add(x.t);
+      return candCard(x.t, `يأخذ حصتك، وتأخذ حصته <b>${esc(w2)}</b> (${esc(I.S[x.subj]||'')})`, msg, x.isBehind ? '<span class="tag w">متأخر مع الصف</span>' : '', canSel ? {on: PICK.has(x.t)} : null);
     }).join('') : '<div class="empty">لا يوجد تبديل مناسب مع الصف نفسه في هذا الأسبوع</div>';
   }
-  openSheet(`<div style="font-weight:700;font-size:17px">${esc(cls)} · ${esc(I.S[l.s]||'')}</div><div class="muted small">${esc(when)}${pTime(p)?' · '+esc(pTime(p)):''}</div>
+  openSheet(`${head}
     <div class="seg"><button data-m="cover" class="${mode==='cover'?'on':''}">تأمين</button><button data-m="swap" class="${mode==='swap'?'on':''}">تبديل</button></div>
-    <div class="muted small" style="margin-bottom:4px">${mode==='cover' ? 'زميل متفرغ يؤمّن الحصة مكانك. يظهر أولًا المتأخرون في المنهج ومن يدرّسون الصف.' : 'زميل يدرّس الصف نفسه، فتتبادلان الحصتين.'}</div>
+    <div class="muted small" style="margin-bottom:4px">${mode==='cover' ? 'زميل متفرغ يؤمّن الحصة مكانك. يظهر أولًا المتأخرون في المنهج ومن يدرّسون الصف.' : 'زميل يدرّس الصف نفسه، فتتبادلان الحصتين. تتفقان لاحقًا على موعد ردّ الحصة.'}
+    ${late ? '' : '<br>اختر زميلًا أو أكثر وأرسل الطلب؛ أول من يقبل تُسجَّل الحصة باسمه.'}</div>
     <div id="cands">${body}</div>
-    <button class="btn ghost block" id="mkappt" style="margin-top:12px">سجّل أن لديّ موعدًا في هذه الحصة</button>`);
-  $('#sheetBody').querySelector('.seg').onclick = e => { const b = e.target.closest('button'); if (b) openSlot(p, b.dataset.m); };
-  $('#cands').onclick = e => { const b = e.target.closest('[data-copy]'); if (!b) return; copy(b.dataset.copy); };
+    ${late ? '' : `<div class="sendbar"><button class="btn block" id="send" ${PICK.size?'':'disabled'}>أرسل الطلب${PICK.size ? ' إلى ' + PICK.size : ''}</button></div>`}
+    <button class="btn ghost block" id="mkappt" style="margin-top:8px">سجّل أن لديّ موعدًا في هذه الحصة</button>`);
+  $('#sheetBody').querySelector('.seg').onclick = e => { const b = e.target.closest('button'); if (b && b.dataset.m !== mode) openSlot(p, b.dataset.m); };
+  $('#cands').onclick = e => {
+    const c = e.target.closest('[data-copy]'); if (c) return copy(c.dataset.copy);
+    const s = e.target.closest('[data-sel]'); if (!s) return;
+    const t = s.dataset.sel; PICK.has(t) ? PICK.delete(t) : PICK.add(t);
+    const sc = $('#sheet').scrollTop; openSlot(p, mode, true); $('#sheet').scrollTop = sc;
+  };
+  const sb = $('#send'); if (sb) sb.onclick = async () => {
+    if (!PICK.size) return; sb.disabled = true;
+    const to = [...PICK];
+    try {
+      await rpc('create_request', {p_token: S.token, p_kind: mode, p_date: date, p_period: p, p_targets: to, p_note: null});
+      await refresh(true);
+      openSheet(`${head}<div class="empty" style="padding:16px 0 8px"><b>تم إرسال الطلب ✓</b><br>سيظهر لزملائك في «طلباتي». نبّههم عبر الواتساب:</div>
+        ${to.map(t => `<div class="card cand"><div class="row"><div class="nm">${esc(tName(t))}</div>${waBtn(t, msgs[t]) || '<span class="muted small">لا يوجد رقم</span>'}</div></div>`).join('')}
+        <button class="btn ghost block" id="done" style="margin-top:10px">تم</button>`);
+      $('#done').onclick = () => { closeSheet(); route(); };
+    } catch(err){ toast(err.message); sb.disabled = false; }
+  };
   $('#mkappt').onclick = async () => {
-    try { await rpc('add_flag', {p_token: S.token, p_kind:'appointment', p_class:null, p_date: date, p_periods:[p], p_note:null}); await refresh(true); toast('تم التسجيل، وسيظهر لزملائك في «طلبات الزملاء»'); closeSheet(); route(); }
+    try { await rpc('add_flag', {p_token: S.token, p_kind:'appointment', p_class:null, p_date: date, p_periods:[p], p_note:null}); await refresh(true); toast('تم التسجيل، وسيظهر لزملائك في «مواعيد الزملاء»'); closeSheet(); route(); }
     catch(err){ toast(err.message); }
+  };
+}
+
+function openReqStatus(r, head){
+  const me = S.bundle.me, cls = S.I.C[r.c] || r.c;
+  let html = head;
+  if (r.status === 'accepted'){
+    const msg = `السلام عليكم أ. ${first(tName(r.by))}، اعتذر، ألغيت طلب ${KIND[r.kind]} حصتي مع الصف ${cls} يوم ${reqWhen(r)}. شكرًا لك — ${first(tName(me))}`;
+    html += `<div class="card cand" style="margin-top:12px"><div class="row"><div class="nm">${esc(tName(r.by))}</div><span class="tag o">قَبِل ${KIND[r.kind]}</span></div>
+      <div class="why">${r.kind === 'swap' ? 'تتفقان على موعد ردّ الحصة.' : 'سيؤمّن الحصة مكانك.'}</div>
+      <div class="acts">${waBtn(r.by, `السلام عليكم أ. ${first(tName(r.by))}، شكرًا لقبولك ${KIND[r.kind]} حصتي مع الصف ${cls} يوم ${reqWhen(r)}. — ${first(tName(me))}`)}</div></div>
+      <button class="btn ghost block" id="cx" style="margin-top:10px">إلغاء</button>`;
+    openSheet(html);
+    $('#cx').onclick = () => cancelReq(r, r.by, msg);
+  } else {
+    const dec = r.to.filter(x => x.r === 'declined').length;
+    html += `<div class="card cand" style="margin-top:12px"><div class="row"><div class="nm">طلب ${KIND[r.kind]} بانتظار الرد</div><span class="tag w">${r.to.length - dec} من ${r.to.length}</span></div>
+      <div class="why">${r.to.map(x => esc(first(tName(x.t))) + (x.r === 'declined' ? ' (اعتذر)' : '')).join('، ')}</div></div>
+      <button class="btn ghost block" id="cx" style="margin-top:10px">سحب الطلب</button>`;
+    openSheet(html);
+    $('#cx').onclick = () => cancelReq(r);
+  }
+}
+
+async function cancelReq(r, other, msg){
+  if (!confirm(r.status === 'accepted' ? 'هل تريد إلغاء هذا الاتفاق؟ سيظهر للطرف الآخر أنه أُلغي.' : 'هل تريد سحب الطلب؟')) return;
+  try {
+    await rpc('cancel_request', {p_token: S.token, p_id: r.id}); await refresh(true);
+    const wa = other && msg ? waBtn(other, msg, 'أبلغه عبر الواتساب') : '';
+    if (wa){ openSheet(`<div class="empty" style="padding:16px 0 8px"><b>تم الإلغاء</b></div>${wa.replace('btn wa sm','btn wa block')}<button class="btn ghost block" id="done" style="margin-top:10px">تم</button>`); $('#done').onclick = () => { closeSheet(); route(); }; }
+    else { closeSheet(); route(); toast('تم الإلغاء'); }
+  } catch(err){ toast(err.message); }
+}
+
+function renderReq(){
+  const I = S.I, me = S.bundle.me, td = today(), R = reqs(), myName = first(tName(me));
+  $('#sub').textContent = 'الطلبات الواردة إليك، وطلباتك، والحصص المتفق عليها';
+  const line = r => `${esc(I.C[r.c]||r.c)} · ${esc(I.S[r.s]||'')} · <b>${esc(reqWhen(r))}</b>${pTime(r.p) ? ' · ' + esc(pTime(r.p)) : ''}`;
+  const inc = incoming();
+  const acc = R.filter(r => r.status === 'accepted' && (r.from === me || r.by === me) && r.date >= td);
+  const sent = R.filter(r => r.from === me && r.status === 'pending' && !started(r.date, r.p));
+  const recent = R.filter(r => r.date >= td && ((r.from === me && ['declined','expired'].includes(r.status)) ||
+    (r.status === 'cancelled' && r.by && (r.from === me || r.by === me) && r.cx !== me)));
+  let h = '<h2>واردة إليك</h2>';
+  h += inc.length ? inc.map(r => `<div class="card cand"><div class="row"><div class="nm">${esc(tName(r.from))}</div><span class="tag">${KIND[r.kind]}</span></div>
+      <div class="why">${line(r)}${r.kind === 'swap' ? '<br>تبديل: تتفقان لاحقًا على موعد ردّ الحصة.' : ''}</div>
+      <div class="acts"><button class="btn sm" data-acc="${r.id}">قبول</button><button class="btn ghost sm" data-dec="${r.id}">اعتذار</button>${waBtn(r.from, `السلام عليكم أ. ${first(tName(r.from))}، بخصوص طلب ${KIND[r.kind]} حصتك يوم ${reqWhen(r)}: `)}</div></div>`).join('')
+    : '<div class="muted small" style="padding:8px 0">لا توجد طلبات واردة</div>';
+  h += '<h2>متفق عليها</h2>';
+  h += acc.length ? acc.map(r => { const mineReq = r.from === me, other = mineReq ? r.by : r.from;
+      return `<div class="card cand ${mineReq ? '' : 'mine'}"><div class="row"><div class="nm">${mineReq ? `أ. ${esc(first(tName(r.by)))} يؤمّن حصتك` : `تؤمّن حصة أ. ${esc(first(tName(r.from)))}`}</div><span class="tag o">${KIND[r.kind]}</span></div>
+        <div class="why">${line(r)}</div><div class="acts">${waBtn(other, `السلام عليكم أ. ${first(tName(other))}، بخصوص ${KIND[r.kind]} حصة الصف ${I.C[r.c]||r.c} يوم ${reqWhen(r)}: `)}<button class="btn ghost sm" data-cx="${r.id}">إلغاء</button></div></div>`; }).join('')
+    : '<div class="muted small" style="padding:8px 0">لا توجد حصص متفق عليها</div>';
+  if (sent.length){
+    h += '<h2>بانتظار الرد</h2>' + sent.map(r => { const dec = r.to.filter(x => x.r === 'declined').length;
+      return `<div class="card cand"><div class="row"><div class="nm">${KIND[r.kind]} · ${esc(I.C[r.c]||r.c)}</div><span class="tag w">${r.to.length - dec} من ${r.to.length}</span></div>
+        <div class="why">${line(r)}<br>${r.to.map(x => esc(first(tName(x.t))) + (x.r === 'declined' ? ' (اعتذر)' : '')).join('، ')}</div>
+        <div class="acts"><button class="btn ghost sm" data-cx="${r.id}">سحب الطلب</button></div></div>`; }).join('');
+  }
+  if (recent.length){
+    const st = r => r.status === 'declined' ? 'اعتذر الجميع' : r.status === 'expired' ? 'انتهى الوقت دون رد' : r.cx === 'admin' ? 'ألغاه المشرف' : `ألغاه أ. ${first(tName(r.cx))}`;
+    h += '<h2>تحديثات</h2>' + recent.map(r => `<div class="card cand"><div class="row"><div class="nm">${KIND[r.kind]} · ${esc(I.C[r.c]||r.c)}</div><span class="tag g">${esc(st(r))}</span></div><div class="why">${line(r)}</div></div>`).join('');
+  }
+  $('#main').innerHTML = h;
+  $('#main').onclick = async e => {
+    const a = e.target.closest('[data-acc]'), d = e.target.closest('[data-dec]'), c = e.target.closest('[data-cx]');
+    if (a || d){
+      const id = +(a || d).dataset[a ? 'acc' : 'dec'], r = R.find(x => x.id === id);
+      if (d && !confirm('هل تعتذر عن هذا الطلب؟')) return;
+      (a || d).disabled = true;
+      try {
+        await rpc('respond_request', {p_token: S.token, p_id: id, p_accept: !!a}); await refresh(true); route();
+        if (a){ const wa = waBtn(r.from, `السلام عليكم أ. ${first(tName(r.from))}، قبلت ${KIND[r.kind]} حصتك مع الصف ${I.C[r.c]||r.c} يوم ${reqWhen(r)}. — ${myName}`, 'أبلغه عبر الواتساب');
+          openSheet(`<div class="empty" style="padding:16px 0 8px"><b>تم القبول ✓</b><br>أُضيفت الحصة إلى «حصصي».</div>${wa.replace('btn wa sm','btn wa block')}<button class="btn ghost block" id="done" style="margin-top:10px">تم</button>`); $('#done').onclick = closeSheet; }
+        else toast('تم');
+      } catch(err){ toast(err.message); await refresh(true); route(); }
+      return;
+    }
+    if (c){ const r = R.find(x => x.id === +c.dataset.cx); if (!r) return;
+      const other = r.status === 'accepted' ? (r.from === me ? r.by : r.from) : null;
+      cancelReq(r, other, other && `السلام عليكم أ. ${first(tName(other))}، اعتذر، ألغيت ${KIND[r.kind]} حصة الصف ${I.C[r.c]||r.c} يوم ${reqWhen(r)}. — ${myName}`); }
   };
 }
 async function copy(text){ try { await navigator.clipboard.writeText(text); toast('تم النسخ'); } catch(e){ prompt('انسخ الرسالة:', text); } }
@@ -438,7 +573,7 @@ function renderMe(){
   $('#main').innerHTML = `
     <h2>متأخر في المنهج مع الصفوف</h2><div class="muted small">اختر الصفوف، وستظهر أولًا عندما يبحث زميل عن معلم لتأمين حصة مع هذا الصف.</div>
     <div class="chips wrapchips" id="beh">${myClasses.map(c => `<button class="chip ${behind.has(c)?'on':''}" data-c="${esc(c)}">${esc(I.C[c]||c)}</button>`).join('')}</div>
-    <h2>مواعيدي</h2><div class="muted small">سيطّلع عليها زملاؤك في «طلبات الزملاء» ويعرضون تأمين حصصك.</div>
+    <h2>مواعيدي</h2><div class="muted small">سيطّلع عليها زملاؤك في «مواعيد الزملاء» ويعرضون تأمين حصصك.</div>
     <div id="appts">${appts.map(f => `<div class="card cand"><div class="row"><div class="nm">${esc(dayName(dayOf(f.on_date)))} ${fmtDate(f.on_date)} · الحصة ${(f.periods||[]).join('، ')}</div><button class="btn ghost sm" data-del="${f.id}">حذف</button></div>${f.note?`<div class="why">${esc(f.note)}</div>`:''}</div>`).join('') || '<div class="muted small" style="padding:8px 0">لا توجد مواعيد</div>'}</div>
     <button class="btn ghost block" id="addAppt">+ موعد جديد</button>
     <h2>رقم الواتساب</h2><div style="display:flex;gap:8px"><input class="f" id="ph" inputmode="tel" dir="ltr" value="${esc(t.phone||'')}"><button class="btn" id="savePh">حفظ</button></div>
@@ -485,11 +620,13 @@ function renderAdmin(){
     <div class="card sec"><div style="font-weight:600">رفع الجدول (XML)</div><div class="muted small">ملف التصدير من برنامج الجداول. تبقى الرموز السرية وأرقام المعلمين كما هي.</div>
       <input type="file" id="xf" accept=".xml,text/xml" class="f" style="margin-top:10px"><div id="pv" class="small" style="margin-top:10px"></div>
       <button class="btn block hide" id="imp" style="margin-top:10px">اعتماد الجدول</button></div>
+    <h2>سجل الطلبات</h2><div class="chips" id="lf"></div><div id="lg"></div>
     <h2>المعلمين</h2><input class="f" id="q" placeholder="ابحث…"><div class="card list" id="tl" style="margin-top:8px"></div>
     <div style="margin:28px 0;text-align:center"><button class="linkbtn" id="out">تسجيل الخروج</button></div></div>`;
   const draw = q => { $('#tl').innerHTML = B.teachers.filter(t => !q || t.name.includes(q)).sort((a,b) => a.name.localeCompare(b.name,'ar')).map(t =>
     `<div class="it"><span>${esc(t.name)} ${t.has_pin ? '<span class="tag o">مفعّل</span>' : '<span class="tag">غير مُفعَّل</span>'}</span>${t.has_pin ? `<button class="btn ghost sm" data-r="${esc(t.id)}">إعادة تعيين الرمز</button>` : ''}</div>`).join('') || '<div class="empty">ارفع الجدول أولًا</div>'; };
   draw(''); $('#q').oninput = e => draw(e.target.value.trim());
+  drawLog();
   $('#tl').onclick = async e => { const b = e.target.closest('[data-r]'); if (!b) return; if (!confirm('هل تريد إعادة تعيين رمز هذا المعلم؟ سينشئ رمزًا جديدًا عند دخوله.')) return;
     try { await rpc('admin_reset_pin', {p_token:S.token, p_teacher:b.dataset.r}); await refresh(true); renderAdmin(); toast('تمت إعادة التعيين'); } catch(err){ toast(err.message); } };
   $('#xf').onchange = async e => {
@@ -506,6 +643,32 @@ function renderAdmin(){
     try { const r = await rpc('admin_import', {p_token:S.token, p: PARSED}); await refresh(true); renderAdmin(); toast(`تم الاعتماد: ${r.teachers} معلمًا، ${r.lessons} حصة`); } catch(err){ toast(err.message); } };
   $('#out').onclick = logout;
 }
+
+let LOGF = 'accepted';
+const ST = {pending:['بانتظار الرد','w'], accepted:['مقبول','o'], declined:['اعتذر الجميع','g'], cancelled:['ملغى','g'], expired:['انتهى دون رد','g']};
+function drawLog(){
+  const I = S.I, td = today(), all = reqs().slice().sort((a,b) => a.date < b.date ? 1 : a.date > b.date ? -1 : b.p - a.p);
+  const F = {accepted:'مقبولة', pending:'معلّقة', cancelled:'ملغاة', all:'الكل'};
+  $('#lf').innerHTML = Object.entries(F).map(([k,v]) => `<button class="chip ${LOGF===k?'on':''}" data-f="${k}">${v} (${k==='all' ? all.length : all.filter(r => r.status===k).length})</button>`).join('');
+  const rows = all.filter(r => LOGF === 'all' || r.status === LOGF).slice(0, 150);
+  $('#lg').innerHTML = rows.map(r => `<div class="card cand"><div class="row"><div class="nm">${esc(first(tName(r.from)))} ← ${r.by ? esc(first(tName(r.by))) : '—'}</div><span class="tag ${ST[r.status][1]}">${KIND[r.kind]} · ${ST[r.status][0]}</span></div>
+    <div class="why">${esc(I.C[r.c]||r.c)} · ${esc(I.S[r.s]||'')} · ${esc(reqWhen(r))}${r.status==='cancelled' && r.cx ? ' · ألغاه ' + (r.cx==='admin' ? 'المشرف' : esc(first(tName(r.cx)))) : ''}</div>
+    ${['pending','accepted'].includes(r.status) && r.date >= td ? `<div class="acts"><button class="btn ghost sm" data-cx="${r.id}">إلغاء</button></div>` : ''}</div>`).join('') || '<div class="muted small" style="padding:8px 0">لا يوجد</div>';
+  $('#lf').onclick = e => { const c = e.target.closest('.chip'); if (c){ LOGF = c.dataset.f; drawLog(); } };
+  $('#lg').onclick = async e => { const b = e.target.closest('[data-cx]'); if (!b || !confirm('إلغاء هذا الطلب؟')) return;
+    try { await rpc('cancel_request', {p_token:S.token, p_id:+b.dataset.cx}); await refresh(true); drawLog(); toast('تم الإلغاء'); } catch(err){ toast(err.message); } };
+}
+
+// تحديث تلقائي للطلبات
+let LASTREQ = '';
+async function poll(){
+  if (!S.token || !S.bundle || document.hidden) return;
+  await refresh(true);
+  const sig = JSON.stringify(reqs());
+  if (sig !== LASTREQ){ LASTREQ = sig; if (!$('#sheet').classList.contains('open') && !S.bundle.is_admin) route(); }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
+setInterval(poll, 90000);
 
 // ---------- Boot ----------
 (async () => {
