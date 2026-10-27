@@ -216,9 +216,9 @@ if (typeof module !== 'undefined') module.exports = Object.assign(module.exports
 const SB_URL = 'https://elgeadktiazterzwaxyn.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsZ2VhZGt0aWF6dGVyendheHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwNzUyNDUsImV4cCI6MjEwODY1MTI0NX0.hKMWNtFxE8ULBmwrXsoBJSOAZHuZ196CYaqGDIYwek4';
 const DAY_FALLBACK = {1:'الأحد',2:'الإثنين',3:'الثلاثاء',4:'الأربعاء',5:'الخميس'};
-const ERR = {pin_format:'الرمز لازم يكون 4 أرقام', already_set:'الحساب ده متفعّل قبل كده. ادخل برمزك أو اطلب من المشرف يصفّره',
-  no_account:'الحساب مش متفعّل', locked:'محاولات كتير غلط. استنى ربع ساعة', bad_pin:'الرمز غلط', no_session:'انتهت الجلسة، ادخل تاني',
-  not_admin:'للمشرف فقط', date_required:'اختار اليوم والحصص', class_required:'اختار الفصل'};
+const ERR = {pin_format:'يجب أن يتكون الرمز من 4 أرقام', already_set:'هذا الحساب مُفعَّل مسبقًا. ادخل برمزك، أو اطلب من المشرف إعادة تعيينه',
+  no_account:'الحساب غير مُفعَّل', locked:'محاولات خاطئة كثيرة. حاول بعد ربع ساعة', bad_pin:'الرمز غير صحيح', no_session:'انتهت الجلسة، سجّل الدخول مجددًا',
+  not_admin:'للمشرف فقط', date_required:'اختر اليوم والحصص', class_required:'اختر الصف'};
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -231,7 +231,7 @@ async function rpc(fn, args){
   const r = await fetch(SB_URL + '/rest/v1/rpc/' + fn, {method:'POST',
     headers:{'Content-Type':'application/json', apikey: SB_KEY, Authorization:'Bearer ' + SB_KEY}, body: JSON.stringify(args || {})});
   const txt = await r.text(); let j = null; try { j = txt ? JSON.parse(txt) : null; } catch(e){}
-  if (!r.ok){ const code = (j && j.message) || 'error'; const e = new Error(ERR[code] || ('حصل خطأ، جرّب تاني' + (code !== 'error' ? ' (' + String(code).slice(0, 80) + ')' : ''))); e.code = code; throw e; }
+  if (!r.ok){ const code = (j && j.message) || 'error'; const e = new Error(ERR[code] || ('حدث خطأ، حاول مرة أخرى' + (code !== 'error' ? ' (' + String(code).slice(0, 80) + ')' : ''))); e.code = code; throw e; }
   return j;
 }
 function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('on'), 2200); }
@@ -259,7 +259,7 @@ async function refresh(silent){
     S.bundle = b; store.set('ts_bundle', b); S.I = buildIndex(b);
   } catch(e){
     if (e.code === 'no_session'){ logout(); return; }
-    if (!silent) toast('مفيش اتصال، بيعرض آخر نسخة محفوظة');
+    if (!silent) toast('لا يوجد اتصال، تُعرض آخر نسخة محفوظة');
   }
 }
 function logout(){ S.token = null; S.bundle = null; S.I = null; store.del('ts_token'); store.del('ts_bundle'); renderLogin(); }
@@ -268,22 +268,22 @@ function logout(){ S.token = null; S.bundle = null; S.I = null; store.del('ts_to
 let LOGIN = {list: [], pick: null, mode: 'list', pin: '', pin2: '', phone: ''};
 async function renderLogin(){
   document.body.style.paddingBottom = '16px';
-  $('#app').innerHTML = `<div class="wrap"><header class="top"><h1>مساعد المعلم</h1><div class="sub">تبديل الحصص والاحتياط بسرعة</div></header><div id="lg"></div></div>`;
+  $('#app').innerHTML = `<div class="wrap"><header class="top"><h1>مساعد المعلم</h1><div class="sub">تبديل الحصص وتأمينها بسهولة</div></header><div id="lg"></div></div>`;
   if (!LOGIN.list.length){
     $('#lg').innerHTML = '<div class="empty">جاري التحميل…</div>';
-    try { LOGIN.list = await rpc('list_teachers'); } catch(e){ $('#lg').innerHTML = '<div class="empty">مفيش اتصال بالإنترنت</div>'; return; }
+    try { LOGIN.list = await rpc('list_teachers'); } catch(e){ $('#lg').innerHTML = '<div class="empty">لا يوجد اتصال بالإنترنت</div>'; return; }
   }
   drawLogin();
 }
 function drawLogin(){
   const L = LOGIN, el = $('#lg');
   if (L.mode === 'list'){
-    if (!L.list.length){ el.innerHTML = `<div class="empty">لسه مفيش جدول. المشرف يرفع ملف الجدول الأول.</div><div style="text-align:center"><button class="linkbtn" id="adm">دخول المشرف</button></div>`; $('#adm').onclick = () => { L.mode='admin'; L.pin=''; drawLogin(); }; return; }
-    el.innerHTML = `<label class="l">اختار اسمك</label><input class="f" id="q" placeholder="ابحث بالاسم…" autocomplete="off">
+    if (!L.list.length){ el.innerHTML = `<div class="empty">لم يُرفع الجدول بعد. يُرجى من المشرف رفع ملف الجدول أولًا.</div><div style="text-align:center"><button class="linkbtn" id="adm">دخول المشرف</button></div>`; $('#adm').onclick = () => { L.mode='admin'; L.pin=''; drawLogin(); }; return; }
+    el.innerHTML = `<label class="l">اختر اسمك</label><input class="f" id="q" placeholder="ابحث بالاسم…" autocomplete="off">
       <div class="card list" id="names" style="margin-top:10px;max-height:60vh;overflow:auto"></div>
       <div style="text-align:center;margin-top:10px"><button class="linkbtn" id="adm">دخول المشرف</button></div>`;
     const draw = q => { const rows = L.list.filter(t => !q || t.name.includes(q)).slice(0, 80);
-      $('#names').innerHTML = rows.map(t => `<div class="it" data-id="${esc(t.id)}"><span>${esc(t.name)}</span>${t.has_pin ? '' : '<span class="tag">أول مرة</span>'}</div>`).join('') || '<div class="empty">مفيش اسم مطابق</div>'; };
+      $('#names').innerHTML = rows.map(t => `<div class="it" data-id="${esc(t.id)}"><span>${esc(t.name)}</span>${t.has_pin ? '' : '<span class="tag">جديد</span>'}</div>`).join('') || '<div class="empty">لا يوجد اسم مطابق</div>'; };
     draw(''); $('#q').oninput = e => draw(e.target.value.trim());
     $('#names').onclick = e => { const it = e.target.closest('.it'); if (!it) return; L.pick = L.list.find(t => t.id === it.dataset.id); L.mode = L.pick.has_pin ? 'pin' : 'setup'; L.pin=''; L.pin2=''; drawLogin(); };
     $('#adm').onclick = () => { L.mode='admin'; L.pin=''; drawLogin(); };
@@ -292,7 +292,7 @@ function drawLogin(){
   if (L.mode === 'pin' || L.mode === 'admin'){
     const isAdm = L.mode === 'admin', len = isAdm ? 6 : 4;
     el.innerHTML = `<div class="card sec" style="text-align:center"><div style="font-weight:600">${isAdm ? 'رمز المشرف' : esc(L.pick.name)}</div>
-      <div class="muted small">${isAdm ? '6 أرقام' : 'اكتب رمزك السري'}</div>
+      <div class="muted small">${isAdm ? '6 أرقام' : 'أدخل رمزك السري'}</div>
       <div class="pin">${Array.from({length: len}, (_, i) => `<span class="${i < L.pin.length ? 'on' : ''}"></span>`).join('')}</div>
       <div class="pad">${[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map(k => k === '' ? '<span></span>' : `<button data-k="${k}">${k}</button>`).join('')}</div>
       <div class="err" id="er"></div><button class="linkbtn" id="back">رجوع</button></div>`;
@@ -304,7 +304,7 @@ function drawLogin(){
       if (L.pin.length === len){
         try {
           const tok = isAdm ? await rpc('admin_login', {p_code: L.pin}) : await rpc('login', {p_teacher: L.pick.id, p_pin: L.pin});
-          if (!tok){ $('#er').textContent = isAdm ? 'الرمز غلط' : 'الرمز غلط'; L.pin=''; el.querySelectorAll('.pin span').forEach(s => s.classList.remove('on')); return; }
+          if (!tok){ $('#er').textContent = 'الرمز غير صحيح'; L.pin=''; el.querySelectorAll('.pin span').forEach(s => s.classList.remove('on')); return; }
           await enter(tok);
         } catch(err){ $('#er').textContent = err.message; L.pin=''; el.querySelectorAll('.pin span').forEach(s => s.classList.remove('on')); }
       }
@@ -312,7 +312,7 @@ function drawLogin(){
     return;
   }
   if (L.mode === 'setup'){
-    el.innerHTML = `<div class="card sec"><div style="font-weight:600">${esc(L.pick.name)}</div><div class="muted small">أول دخول: اعمل رمز سري، وضيف رقم الواتساب عشان زمايلك يكلموك.</div>
+    el.innerHTML = `<div class="card sec"><div style="font-weight:600">${esc(L.pick.name)}</div><div class="muted small">الدخول الأول: أنشئ رمزًا سريًا، وأضف رقم الواتساب ليتواصل معك زملاؤك.</div>
       <label class="l">الرمز السري (4 أرقام)</label><input class="f" id="p1" inputmode="numeric" maxlength="4" type="password" autocomplete="new-password">
       <label class="l">أكّد الرمز</label><input class="f" id="p2" inputmode="numeric" maxlength="4" type="password" autocomplete="new-password">
       <label class="l">رقم الواتساب</label><input class="f" id="ph" inputmode="tel" placeholder="مثال: 9xxxxxxx" dir="ltr">
@@ -322,7 +322,7 @@ function drawLogin(){
     $('#go').onclick = async () => {
       const a = $('#p1').value, b = $('#p2').value;
       if (!/^\d{4}$/.test(a)) return $('#er').textContent = ERR.pin_format;
-      if (a !== b) return $('#er').textContent = 'الرمزين مش زي بعض';
+      if (a !== b) return $('#er').textContent = 'الرمزان غير متطابقين';
       try { const tok = await rpc('setup_account', {p_teacher: L.pick.id, p_pin: a, p_phone: $('#ph').value}); await enter(tok); }
       catch(err){ $('#er').textContent = err.message; }
     };
@@ -342,7 +342,7 @@ function route(){
   $('#app').innerHTML = `<div class="wrap"><header class="top"><h1>${esc(me ? first(me.name) : '')}</h1><div class="sub" id="sub"></div></header><main id="main"></main></div>
   <nav class="tabs">
     <button data-t="day" class="${S.tab==='day'?'on':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>حصصي</button>
-    <button data-t="opp" class="${S.tab==='opp'?'on':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3l4 4-4 4M21 7H8M7 21l-4-4 4-4M3 17h13"/></svg><span>طلبات زملاء${opp ? `<span class="badge">${opp}</span>` : ''}</span></button>
+    <button data-t="opp" class="${S.tab==='opp'?'on':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3l4 4-4 4M21 7H8M7 21l-4-4 4-4M3 17h13"/></svg><span>طلبات الزملاء${opp ? `<span class="badge">${opp}</span>` : ''}</span></button>
     <button data-t="me" class="${S.tab==='me'?'on':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/></svg>حالتي</button>
   </nav>`;
   document.querySelector('nav.tabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.tab = b.dataset.t; route(); };
@@ -351,16 +351,16 @@ function route(){
 
 function renderDay(){
   const I = S.I, me = S.bundle.me, dates = schoolDates(today(), 10), d = dayOf(S.date);
-  $('#sub').textContent = 'اختار يوم، واضغط على الحصة اللي عايز تبدّلها';
+  $('#sub').textContent = 'اختر اليوم، ثم اضغط على الحصة المطلوب تبديلها أو تأمينها';
   const mine = (I.byTeacher[me]||[]).filter(x => x.d === d);
   const myAppts = new Set(S.bundle.flags.filter(f => f.kind==='appointment' && f.teacher_id===me && f.on_date===S.date).flatMap(f => f.periods||[]));
   const per = S.bundle.periods.length ? S.bundle.periods.map(p => p.period) : [1,2,3,4,5,6,7];
-  $('#main').innerHTML = `<div class="chips">${dates.map(x => `<button class="chip ${x===S.date?'on':''}" data-d="${x}">${esc(dayName(dayOf(x)))}<span class="d">${x===today()?'النهارده':fmtDate(x)}</span></button>`).join('')}</div>
+  $('#main').innerHTML = `<div class="chips">${dates.map(x => `<button class="chip ${x===S.date?'on':''}" data-d="${x}">${esc(dayName(dayOf(x)))}<span class="d">${x===today()?'اليوم':fmtDate(x)}</span></button>`).join('')}</div>
     <div id="slots">${per.map(p => { const l = mine.find(x => x.p === p);
-      if (!l) return `<div class="slot free"><div class="n">${p}</div><div class="b small">فاضي${pTime(p)?' · '+esc(pTime(p)):''}</div></div>`;
-      return `<div class="card slot" data-p="${p}"><div class="n">${p}</div><div class="b"><div class="t">${esc(I.C[l.c]||l.c)} ${myAppts.has(p)?'<span class="tag w">عندك موعد</span>':''}</div>
+      if (!l) return `<div class="slot free"><div class="n">${p}</div><div class="b small">فراغ${pTime(p)?' · '+esc(pTime(p)):''}</div></div>`;
+      return `<div class="card slot" data-p="${p}"><div class="n">${p}</div><div class="b"><div class="t">${esc(I.C[l.c]||l.c)} ${myAppts.has(p)?'<span class="tag w">لديك موعد</span>':''}</div>
         <div class="muted small">${esc(I.S[l.s]||'')} · ${esc(pTime(p))}</div></div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted)"><path d="M15 6l-6 6 6 6"/></svg></div>`; }).join('')}
-    ${mine.length ? '' : '<div class="empty">مفيش حصص في اليوم ده</div>'}</div>`;
+    ${mine.length ? '' : '<div class="empty">لا توجد حصص في هذا اليوم</div>'}</div>`;
   $('#main').querySelector('.chips').onclick = e => { const c = e.target.closest('.chip'); if (!c) return; S.date = c.dataset.d; renderDay(); };
   $('#slots').onclick = e => { const s = e.target.closest('.slot[data-p]'); if (s) openSlot(+s.dataset.p); };
   const on = $('#main').querySelector('.chip.on'); on && on.scrollIntoView({inline:'center', block:'nearest'});
@@ -373,7 +373,7 @@ $('#sheetBg').onclick = closeSheet;
 function candCard(t, why, msg, tags){
   const link = waLink(t, msg);
   return `<div class="card cand"><div class="row"><div class="nm">${esc(tName(t))}</div>${tags||''}</div><div class="why">${why}</div>
-    <div class="acts">${link ? `<a class="btn wa sm" href="${link}" target="_blank" rel="noopener" style="text-align:center;text-decoration:none">واتساب</a>` : `<button class="btn sm ghost" disabled>مفيش رقم</button>`}
+    <div class="acts">${link ? `<a class="btn wa sm" href="${link}" target="_blank" rel="noopener" style="text-align:center;text-decoration:none">واتساب</a>` : `<button class="btn sm ghost" disabled>لا يوجد رقم</button>`}
     <button class="btn ghost sm" data-copy="${esc(msg)}">نسخ الرسالة</button></div></div>`;
 }
 
@@ -387,60 +387,60 @@ function openSlot(p, mode){
   if (mode === 'cover'){
     const list = coverCandidates(I, me, date, p, l.c);
     body = list.length ? list.slice(0, 25).map(x => {
-      const tags = (x.isBehind ? '<span class="tag w">متأخر مع الفصل</span>' : '') + (x.teaches && !x.isBehind ? '<span class="tag o">يدرّس الفصل</span>' : '');
-      const msg = `السلام عليكم أ. ${first(tName(x.t))}، ممكن تغطي حصتي مع فصل ${cls} يوم ${when}${pTime(p)?' ('+pTime(p)+')':''}؟` + (x.isBehind || x.teaches ? ' تقدر تستغلها في مادتك مع الفصل.' : '') + ` شكرًا لك — ${myName}`;
-      return candCard(x.t, `فاضي في الوقت ده · عنده ${x.load} حصص اليوم`, msg, tags);
-    }).join('') : '<div class="empty">مفيش حد فاضي في الحصة دي</div>';
+      const tags = (x.isBehind ? '<span class="tag w">متأخر مع الصف</span>' : '') + (x.teaches && !x.isBehind ? '<span class="tag o">يدرّس الصف</span>' : '');
+      const msg = `السلام عليكم أ. ${first(tName(x.t))}، هل يمكنك تأمين حصتي مع الصف ${cls} يوم ${when}${pTime(p)?' ('+pTime(p)+')':''}؟` + (x.isBehind || x.teaches ? ' ويمكنك استثمارها في مادتك مع الصف.' : '') + ` شكرًا لك — ${myName}`;
+      return candCard(x.t, `متفرغ في هذا الوقت · لديه ${x.load} حصص في اليوم`, msg, tags);
+    }).join('') : '<div class="empty">لا يوجد معلم متفرغ في هذه الحصة</div>';
   } else {
     const list = swapCandidates(I, me, date, p, l.c, today());
     body = list.length ? list.slice(0, 25).map(x => {
       const w2 = `${dayName(x.d2)} ${fmtDate(x.date2)} الحصة ${x.p2}`;
-      const msg = `السلام عليكم أ. ${first(tName(x.t))}، ممكن نبدّل؟ تاخد حصتي مع فصل ${cls} يوم ${when}، وأنا آخد حصتك مع نفس الفصل يوم ${w2}. شكرًا لك — ${myName}`;
-      return candCard(x.t, `ياخد حصتك، وانت تاخد حصته <b>${esc(w2)}</b> (${esc(I.S[x.subj]||'')})`, msg, x.isBehind ? '<span class="tag w">متأخر مع الفصل</span>' : '');
-    }).join('') : '<div class="empty">مفيش تبديل مناسب مع نفس الفصل في الأسبوع ده</div>';
+      const msg = `السلام عليكم أ. ${first(tName(x.t))}، هل يمكننا تبديل حصتين؟ تأخذ حصتي مع الصف ${cls} يوم ${when}، وآخذ حصتك مع الصف نفسه يوم ${w2}. شكرًا لك — ${myName}`;
+      return candCard(x.t, `يأخذ حصتك، وتأخذ حصته <b>${esc(w2)}</b> (${esc(I.S[x.subj]||'')})`, msg, x.isBehind ? '<span class="tag w">متأخر مع الصف</span>' : '');
+    }).join('') : '<div class="empty">لا يوجد تبديل مناسب مع الصف نفسه في هذا الأسبوع</div>';
   }
   openSheet(`<div style="font-weight:700;font-size:17px">${esc(cls)} · ${esc(I.S[l.s]||'')}</div><div class="muted small">${esc(when)}${pTime(p)?' · '+esc(pTime(p)):''}</div>
-    <div class="seg"><button data-m="cover" class="${mode==='cover'?'on':''}">احتياط</button><button data-m="swap" class="${mode==='swap'?'on':''}">تبديل</button></div>
-    <div class="muted small" style="margin-bottom:4px">${mode==='cover' ? 'زميل فاضي ياخد الحصة مكانك. اللي متأخرين أو بيدرّسوا الفصل في الأول.' : 'زميل بيدرّس نفس الفصل، تتبادلوا الحصص.'}</div>
+    <div class="seg"><button data-m="cover" class="${mode==='cover'?'on':''}">تأمين</button><button data-m="swap" class="${mode==='swap'?'on':''}">تبديل</button></div>
+    <div class="muted small" style="margin-bottom:4px">${mode==='cover' ? 'زميل متفرغ يؤمّن الحصة مكانك. يظهر أولًا المتأخرون في المنهج ومن يدرّسون الصف.' : 'زميل يدرّس الصف نفسه، فتتبادلان الحصتين.'}</div>
     <div id="cands">${body}</div>
-    <button class="btn ghost block" id="mkappt" style="margin-top:12px">سجّل إن عندي موعد في الحصة دي</button>`);
+    <button class="btn ghost block" id="mkappt" style="margin-top:12px">سجّل أن لديّ موعدًا في هذه الحصة</button>`);
   $('#sheetBody').querySelector('.seg').onclick = e => { const b = e.target.closest('button'); if (b) openSlot(p, b.dataset.m); };
   $('#cands').onclick = e => { const b = e.target.closest('[data-copy]'); if (!b) return; copy(b.dataset.copy); };
   $('#mkappt').onclick = async () => {
-    try { await rpc('add_flag', {p_token: S.token, p_kind:'appointment', p_class:null, p_date: date, p_periods:[p], p_note:null}); await refresh(true); toast('اتسجّل، وهيظهر لزمايلك في «طلبات زملاء»'); closeSheet(); route(); }
+    try { await rpc('add_flag', {p_token: S.token, p_kind:'appointment', p_class:null, p_date: date, p_periods:[p], p_note:null}); await refresh(true); toast('تم التسجيل، وسيظهر لزملائك في «طلبات الزملاء»'); closeSheet(); route(); }
     catch(err){ toast(err.message); }
   };
 }
-async function copy(text){ try { await navigator.clipboard.writeText(text); toast('اتنسخت'); } catch(e){ prompt('انسخ الرسالة:', text); } }
+async function copy(text){ try { await navigator.clipboard.writeText(text); toast('تم النسخ'); } catch(e){ prompt('انسخ الرسالة:', text); } }
 
 function renderOpp(){
   const I = S.I, me = S.bundle.me, list = opportunities(I, S.bundle, me, today());
-  $('#sub').textContent = 'زملاء عندهم مواعيد، وانت فاضي في حصصهم';
+  $('#sub').textContent = 'زملاء لديهم مواعيد، وأنت متفرغ في حصصهم';
   const myName = first(tName(me));
   $('#main').innerHTML = list.length ? list.map(x => {
     const cls = I.C[x.c] || x.c, when = `${dayName(x.d)} ${fmtDate(x.date)} الحصة ${x.p}`;
-    const msg = `السلام عليكم أ. ${first(tName(x.owner))}، شفت إن عندك موعد يوم ${when}. أقدر أغطي حصتك مع فصل ${cls}. — ${myName}`;
-    const tags = x.meBehind ? '<span class="tag w">فرصة لمنهجك</span>' : x.teaches ? '<span class="tag o">بتدرّس الفصل</span>' : '';
+    const msg = `السلام عليكم أ. ${first(tName(x.owner))}، علمت أن لديك موعدًا يوم ${when}، ويمكنني تأمين حصتك مع الصف ${cls}. — ${myName}`;
+    const tags = x.meBehind ? '<span class="tag w">فرصة لمنهجك</span>' : x.teaches ? '<span class="tag o">تدرّس هذا الصف</span>' : '';
     return candCard(x.owner, `${esc(cls)} · ${esc(I.S[x.s]||'')} · <b>${esc(when)}</b>${x.flag.note ? ' · ' + esc(x.flag.note) : ''}`, msg, tags);
-  }).join('') : '<div class="empty">مفيش طلبات دلوقتي</div>';
+  }).join('') : '<div class="empty">لا توجد طلبات حاليًا</div>';
   $('#main').onclick = e => { const b = e.target.closest('[data-copy]'); if (b) copy(b.dataset.copy); };
 }
 
 function renderMe(){
   const I = S.I, me = S.bundle.me, t = I.T[me] || {};
-  $('#sub').textContent = 'حالتك بتساعد زمايلك يلاقوك';
+  $('#sub').textContent = 'بياناتك تساعد زملاءك في الوصول إليك';
   const myClasses = [...new Set((I.byTeacher[me]||[]).map(x => x.c))].sort((a,b) => (I.C[a]||'').localeCompare(I.C[b]||'', 'ar', {numeric:true}));
   const behind = I.behind[me] || new Set();
   const appts = S.bundle.flags.filter(f => f.kind==='appointment' && f.teacher_id===me && f.on_date >= today()).sort((a,b) => a.on_date < b.on_date ? -1 : 1);
   $('#main').innerHTML = `
-    <h2>متأخر في المنهج مع</h2><div class="muted small">اختار الفصول. هتظهر في الأول لما حد يدوّر على احتياط مع الفصل ده.</div>
+    <h2>متأخر في المنهج مع الصفوف</h2><div class="muted small">اختر الصفوف، وستظهر أولًا عندما يبحث زميل عن معلم لتأمين حصة مع هذا الصف.</div>
     <div class="chips wrapchips" id="beh">${myClasses.map(c => `<button class="chip ${behind.has(c)?'on':''}" data-c="${esc(c)}">${esc(I.C[c]||c)}</button>`).join('')}</div>
-    <h2>مواعيدي</h2><div class="muted small">زمايلك هيشوفوها في «طلبات زملاء» ويعرضوا يغطّوا.</div>
-    <div id="appts">${appts.map(f => `<div class="card cand"><div class="row"><div class="nm">${esc(dayName(dayOf(f.on_date)))} ${fmtDate(f.on_date)} · الحصة ${(f.periods||[]).join('، ')}</div><button class="btn ghost sm" data-del="${f.id}">حذف</button></div>${f.note?`<div class="why">${esc(f.note)}</div>`:''}</div>`).join('') || '<div class="muted small" style="padding:8px 0">مفيش مواعيد</div>'}</div>
+    <h2>مواعيدي</h2><div class="muted small">سيطّلع عليها زملاؤك في «طلبات الزملاء» ويعرضون تأمين حصصك.</div>
+    <div id="appts">${appts.map(f => `<div class="card cand"><div class="row"><div class="nm">${esc(dayName(dayOf(f.on_date)))} ${fmtDate(f.on_date)} · الحصة ${(f.periods||[]).join('، ')}</div><button class="btn ghost sm" data-del="${f.id}">حذف</button></div>${f.note?`<div class="why">${esc(f.note)}</div>`:''}</div>`).join('') || '<div class="muted small" style="padding:8px 0">لا توجد مواعيد</div>'}</div>
     <button class="btn ghost block" id="addAppt">+ موعد جديد</button>
     <h2>رقم الواتساب</h2><div style="display:flex;gap:8px"><input class="f" id="ph" inputmode="tel" dir="ltr" value="${esc(t.phone||'')}"><button class="btn" id="savePh">حفظ</button></div>
     <h2>الرمز السري</h2><div style="display:flex;gap:8px"><input class="f" id="po" inputmode="numeric" maxlength="4" type="password" placeholder="القديم"><input class="f" id="pn" inputmode="numeric" maxlength="4" type="password" placeholder="الجديد"><button class="btn" id="savePin">تغيير</button></div>
-    <div style="margin:28px 0;text-align:center"><button class="linkbtn" id="out">تسجيل خروج</button></div>`;
+    <div style="margin:28px 0;text-align:center"><button class="linkbtn" id="out">تسجيل الخروج</button></div>`;
   $('#beh').onclick = async e => { const c = e.target.closest('.chip'); if (!c) return;
     try {
       if (behind.has(c.dataset.c)){ const f = S.bundle.flags.find(f => f.kind==='behind' && f.teacher_id===me && f.class_id===c.dataset.c); if (f) await rpc('delete_flag', {p_token:S.token, p_id:f.id}); }
@@ -449,8 +449,8 @@ function renderMe(){
     } catch(err){ toast(err.message); } };
   $('#appts').onclick = async e => { const b = e.target.closest('[data-del]'); if (!b) return; try { await rpc('delete_flag', {p_token:S.token, p_id:+b.dataset.del}); await refresh(true); renderMe(); } catch(err){ toast(err.message); } };
   $('#addAppt').onclick = apptSheet;
-  $('#savePh').onclick = async () => { try { await rpc('update_phone', {p_token:S.token, p_phone:$('#ph').value}); await refresh(true); toast('اتحفظ'); } catch(err){ toast(err.message); } };
-  $('#savePin').onclick = async () => { try { await rpc('change_pin', {p_token:S.token, p_old:$('#po').value, p_new:$('#pn').value}); toast('اتغيّر الرمز'); $('#po').value = $('#pn').value = ''; } catch(err){ toast(err.message); } };
+  $('#savePh').onclick = async () => { try { await rpc('update_phone', {p_token:S.token, p_phone:$('#ph').value}); await refresh(true); toast('تم الحفظ'); } catch(err){ toast(err.message); } };
+  $('#savePin').onclick = async () => { try { await rpc('change_pin', {p_token:S.token, p_old:$('#po').value, p_new:$('#pn').value}); toast('تم تغيير الرمز'); $('#po').value = $('#pn').value = ''; } catch(err){ toast(err.message); } };
   $('#out').onclick = logout;
 }
 
@@ -461,13 +461,13 @@ function apptSheet(){
     const d = dayOf(date), mine = (I.byTeacher[me]||[]).filter(x => x.d === d).sort((a,b) => a.p - b.p);
     openSheet(`<div style="font-weight:700;font-size:17px">موعد جديد</div>
       <label class="l">اليوم</label><div class="chips" id="ad">${dates.map(x => `<button class="chip ${x===date?'on':''}" data-d="${x}">${esc(dayName(dayOf(x)))}<span class="d">${fmtDate(x)}</span></button>`).join('')}</div>
-      <label class="l">الحصص اللي هتغيب فيها</label><div class="chips wrapchips" id="ap">${mine.map(l => `<button class="chip ${sel.has(l.p)?'on':''}" data-p="${l.p}">ح${l.p} · ${esc(I.C[l.c]||'')}</button>`).join('') || '<span class="muted small">مفيش حصص اليوم ده</span>'}</div>
-      <label class="l">ملاحظة (اختياري)</label><input class="f" id="an" maxlength="200" placeholder="مثلاً: موعد مستشفى">
+      <label class="l">الحصص التي ستغيب عنها</label><div class="chips wrapchips" id="ap">${mine.map(l => `<button class="chip ${sel.has(l.p)?'on':''}" data-p="${l.p}">ح${l.p} · ${esc(I.C[l.c]||'')}</button>`).join('') || '<span class="muted small">لا توجد حصص في هذا اليوم</span>'}</div>
+      <label class="l">ملاحظة (اختياري)</label><input class="f" id="an" maxlength="200" placeholder="مثلًا: موعد في المستشفى">
       <button class="btn block" id="as" style="margin-top:14px">حفظ</button>`);
     $('#ad').onclick = e => { const c = e.target.closest('.chip'); if (!c) return; date = c.dataset.d; sel = new Set(); draw(); };
     $('#ap').onclick = e => { const c = e.target.closest('.chip'); if (!c) return; const p = +c.dataset.p; sel.has(p) ? sel.delete(p) : sel.add(p); c.classList.toggle('on'); };
-    $('#as').onclick = async () => { if (!sel.size) return toast('اختار حصة واحدة على الأقل');
-      try { await rpc('add_flag', {p_token:S.token, p_kind:'appointment', p_class:null, p_date:date, p_periods:[...sel].sort(), p_note:$('#an').value||null}); await refresh(true); closeSheet(); renderMe(); toast('اتسجّل'); }
+    $('#as').onclick = async () => { if (!sel.size) return toast('اختر حصة واحدة على الأقل');
+      try { await rpc('add_flag', {p_token:S.token, p_kind:'appointment', p_class:null, p_date:date, p_periods:[...sel].sort(), p_note:$('#an').value||null}); await refresh(true); closeSheet(); renderMe(); toast('تم التسجيل'); }
       catch(err){ toast(err.message); } };
   };
   draw();
@@ -478,29 +478,29 @@ let PARSED = null;
 function renderAdmin(){
   document.body.style.paddingBottom = '16px';
   const B = S.bundle;
-  $('#app').innerHTML = `<div class="wrap"><header class="top"><h1>لوحة المشرف</h1><div class="sub">${B.teachers.length} معلم · ${B.classes.length} فصل · ${B.schedule.length} حصة</div></header>
-    <div class="card sec"><div style="font-weight:600">رفع الجدول (XML)</div><div class="muted small">ملف التصدير من برنامج الجداول. الرموز السرية وأرقام المعلمين بتفضل زي ما هي.</div>
+  $('#app').innerHTML = `<div class="wrap"><header class="top"><h1>لوحة المشرف</h1><div class="sub">${B.teachers.length} معلم · ${B.classes.length} صف · ${B.schedule.length} حصة</div></header>
+    <div class="card sec"><div style="font-weight:600">رفع الجدول (XML)</div><div class="muted small">ملف التصدير من برنامج الجداول. تبقى الرموز السرية وأرقام المعلمين كما هي.</div>
       <input type="file" id="xf" accept=".xml,text/xml" class="f" style="margin-top:10px"><div id="pv" class="small" style="margin-top:10px"></div>
-      <button class="btn block hide" id="imp" style="margin-top:10px">اعتمد الجدول</button></div>
+      <button class="btn block hide" id="imp" style="margin-top:10px">اعتماد الجدول</button></div>
     <h2>المعلمين</h2><input class="f" id="q" placeholder="ابحث…"><div class="card list" id="tl" style="margin-top:8px"></div>
-    <div style="margin:28px 0;text-align:center"><button class="linkbtn" id="out">خروج</button></div></div>`;
+    <div style="margin:28px 0;text-align:center"><button class="linkbtn" id="out">تسجيل الخروج</button></div></div>`;
   const draw = q => { $('#tl').innerHTML = B.teachers.filter(t => !q || t.name.includes(q)).sort((a,b) => a.name.localeCompare(b.name,'ar')).map(t =>
-    `<div class="it"><span>${esc(t.name)} ${t.has_pin ? '<span class="tag o">مفعّل</span>' : '<span class="tag">لسه</span>'}</span>${t.has_pin ? `<button class="btn ghost sm" data-r="${esc(t.id)}">تصفير الرمز</button>` : ''}</div>`).join('') || '<div class="empty">ارفع الجدول الأول</div>'; };
+    `<div class="it"><span>${esc(t.name)} ${t.has_pin ? '<span class="tag o">مفعّل</span>' : '<span class="tag">غير مُفعَّل</span>'}</span>${t.has_pin ? `<button class="btn ghost sm" data-r="${esc(t.id)}">إعادة تعيين الرمز</button>` : ''}</div>`).join('') || '<div class="empty">ارفع الجدول أولًا</div>'; };
   draw(''); $('#q').oninput = e => draw(e.target.value.trim());
-  $('#tl').onclick = async e => { const b = e.target.closest('[data-r]'); if (!b) return; if (!confirm('تصفير رمز المعلم ده؟ هيعمل رمز جديد أول ما يدخل.')) return;
-    try { await rpc('admin_reset_pin', {p_token:S.token, p_teacher:b.dataset.r}); await refresh(true); renderAdmin(); toast('اتصفّر'); } catch(err){ toast(err.message); } };
+  $('#tl').onclick = async e => { const b = e.target.closest('[data-r]'); if (!b) return; if (!confirm('هل تريد إعادة تعيين رمز هذا المعلم؟ سينشئ رمزًا جديدًا عند دخوله.')) return;
+    try { await rpc('admin_reset_pin', {p_token:S.token, p_teacher:b.dataset.r}); await refresh(true); renderAdmin(); toast('تمت إعادة التعيين'); } catch(err){ toast(err.message); } };
   $('#xf').onchange = async e => {
     const f = e.target.files[0]; if (!f) return;
     try {
       PARSED = parseTimetable(decodeXmlBytes(new Uint8Array(await f.arrayBuffer())));
       const bad = PARSED.teachers.filter(t => /\uFFFD/.test(t.name)).length;
-      $('#pv').innerHTML = `${PARSED.teachers.length} معلم · ${PARSED.classes.length} فصل · ${PARSED.subjects.length} مادة · ${PARSED.schedule.length} حصة<br>أمثلة: ${PARSED.teachers.slice(0,3).map(t => esc(t.name)).join('، ')}`
-        + (bad ? `<div class="err">${bad} اسم شكله تالف. اتأكد إنك رافع الملف الأصلي.</div>` : '');
+      $('#pv').innerHTML = `${PARSED.teachers.length} معلم · ${PARSED.classes.length} صف · ${PARSED.subjects.length} مادة · ${PARSED.schedule.length} حصة<br>أمثلة: ${PARSED.teachers.slice(0,3).map(t => esc(t.name)).join('، ')}`
+        + (bad ? `<div class="err">${bad} اسمًا يبدو تالفًا. تأكد من رفع الملف الأصلي.</div>` : '');
       $('#imp').classList.toggle('hide', !PARSED.schedule.length);
-    } catch(err){ $('#pv').innerHTML = '<div class="err">الملف مش مفهوم</div>'; }
+    } catch(err){ $('#pv').innerHTML = '<div class="err">تعذّرت قراءة الملف</div>'; }
   };
-  $('#imp').onclick = async () => { if (!PARSED || !confirm('الجدول الجديد هيحل محل القديم. متأكد؟')) return;
-    try { const r = await rpc('admin_import', {p_token:S.token, p: PARSED}); await refresh(true); renderAdmin(); toast(`اتعتمد: ${r.teachers} معلم، ${r.lessons} حصة`); } catch(err){ toast(err.message); } };
+  $('#imp').onclick = async () => { if (!PARSED || !confirm('سيحلّ الجدول الجديد محلّ القديم. هل أنت متأكد؟')) return;
+    try { const r = await rpc('admin_import', {p_token:S.token, p: PARSED}); await refresh(true); renderAdmin(); toast(`تم الاعتماد: ${r.teachers} معلمًا، ${r.lessons} حصة`); } catch(err){ toast(err.message); } };
   $('#out').onclick = logout;
 }
 
