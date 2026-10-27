@@ -24,3 +24,6 @@ from (values
 where t.id = v.id and (t.phone is null or t.phone = '');
 
 select count(*) filter (where phone is not null and phone <> '') as with_phone, count(*) as total from public.teachers;
+
+-- إضافة: جميل محمد علي
+update public.teachers set phone = '92172019' where id = '*7' and (phone is null or phone = '');
