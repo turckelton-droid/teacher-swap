@@ -277,8 +277,17 @@ function waLink(tid, text){ const ph = waPhone(S.I.T[tid] && S.I.T[tid].phone); 
 function dayName(d){ return (S.I.D[d] && !/\uFFFD/.test(S.I.D[d])) ? S.I.D[d] : DAY_FALLBACK[d]; }
 function fmtDate(s){ const d = parseIso(s); return d.getDate() + '/' + (d.getMonth()+1); }
 function pTime(p){ const x = S.I.P[p]; return x ? (x.start || x.starttime || '') : ''; }
+// الاسم الأول + اسم العائلة للقوائم والسجل؛ لو تكرر نضيف الاسم الثاني
+function lbl2(name, mid){ const w = String(name||'').trim().split(/\s+/), f = first(name), n = f.split(' ').length;
+  if (w.length <= n) return f; return f + (mid && w.length > n + 1 ? ' ' + w[n] : '') + ' ' + w[w.length-1]; }
+let LBL = null, LBL_I = null;
+function tLabel(t){ if (LBL_I !== S.I){ LBL = {}; LBL_I = S.I; const cnt = {};
+    for (const id in S.I.T){ const k = lbl2(S.I.T[id].name); cnt[k] = (cnt[k]||0) + 1; }
+    for (const id in S.I.T){ const nm = S.I.T[id].name, k = lbl2(nm); LBL[id] = cnt[k] > 1 ? lbl2(nm, true) : k; } }
+  return LBL[t] || '—'; }
 function tName(t){ return (S.I.T[t] && (S.I.T[t].name)) || '—'; }
-function first(name){ return String(name||'').split(' ').slice(0,2).join(' '); }
+// الاسم الأول فقط؛ الأسماء المركّبة (عبد الرحمن، أبو بكر…) تبقى كلمتين
+function first(name){ const w = String(name||'').trim().split(/\s+/); return /^(عبد|عبدال|أبو|ابو)$/.test(w[0]) && w[1] ? w[0] + ' ' + w[1] : w[0]; }
 function started(date, p){ const t = String(pTime(p)||'7:00').split(':').map(Number), d = parseIso(date); d.setHours(t[0]||0, t[1]||0, 0, 0); return d <= new Date(); }
 const ORD = ['','الأولى','الثانية','الثالثة','الرابعة','الخامسة','السادسة','السابعة','الثامنة','التاسعة'];
 function pLabel(p){ const t = pTime(p), h = +String(t).split(':')[0]; return (ORD[p] || p) + (t ? ` (${t} ${h && h < 12 ? 'صباحًا' : 'ظهرًا'})` : ''); }
@@ -404,11 +413,11 @@ function renderDay(){
     <div id="slots">${per.map(p => { const l = mine.find(x => x.p === p);
       if (!l){
         const cv = reqs().find(r => r.status === 'accepted' && r.by === me && r.date === S.date && r.p === p);
-        if (cv) return `<div class="card slot mine" data-r="${cv.id}"><div class="n">${p}</div><div class="b"><div class="t">${esc(I.C[cv.c]||cv.c)} <span class="tag o">تؤمّنها</span></div><div class="muted small">عن أ. ${esc(first(tName(cv.from)))} · ${esc(pTime(p))}</div></div></div>`;
+        if (cv) return `<div class="card slot mine" data-r="${cv.id}"><div class="n">${p}</div><div class="b"><div class="t">${esc(I.C[cv.c]||cv.c)} <span class="tag o">تؤمّنها</span></div><div class="muted small">عن أ. ${esc(tLabel(cv.from))} · ${esc(pTime(p))}</div></div></div>`;
         return `<div class="slot free"><div class="n">${p}</div><div class="b small">فراغ${pTime(p)?' · '+esc(pTime(p)):''}</div></div>`;
       }
       const rq = I.slotReq[me+'|'+S.date+'|'+p];
-      const rtag = !rq ? '' : rq.status === 'accepted' ? `<span class="tag o">${KIND[rq.kind]}: أ. ${esc(first(tName(rq.by)))}</span>` : '<span class="tag w">طلب بانتظار الرد</span>';
+      const rtag = !rq ? '' : rq.status === 'accepted' ? `<span class="tag o">${KIND[rq.kind]}: أ. ${esc(tLabel(rq.by))}</span>` : '<span class="tag w">طلب بانتظار الرد</span>';
       return `<div class="card slot" data-p="${p}"><div class="n">${p}</div><div class="b"><div class="t">${esc(I.C[l.c]||l.c)} ${myAppts.has(p)?'<span class="tag w">لديك موعد</span>':''}${rtag}</div>
         <div class="muted small">${esc(I.S[l.s]||'')} · ${esc(pTime(p))}</div></div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted)"><path d="M15 6l-6 6 6 6"/></svg></div>`; }).join('')}
     ${mine.length ? '' : '<div class="empty">لا توجد حصص في هذا اليوم</div>'}</div>`;
@@ -504,7 +513,7 @@ function openReqStatus(r, head){
   } else {
     const dec = r.to.filter(x => x.r === 'declined').length;
     html += `<div class="card cand" style="margin-top:12px"><div class="row"><div class="nm">طلب ${KIND[r.kind]} بانتظار الرد</div><span class="tag w">${r.to.length - dec} من ${r.to.length}</span></div>
-      <div class="why">${r.to.map(x => esc(first(tName(x.t))) + (x.r === 'declined' ? ' (اعتذر)' : '')).join('، ')}</div></div>
+      <div class="why">${r.to.map(x => esc(tLabel(x.t)) + (x.r === 'declined' ? ' (اعتذر)' : '')).join('، ')}</div></div>
       <button class="btn ghost block" id="cx" style="margin-top:10px">سحب الطلب</button>`;
     openSheet(html);
     $('#cx').onclick = () => cancelReq(r);
@@ -537,17 +546,17 @@ function renderReq(){
     : '<div class="muted small" style="padding:8px 0">لا توجد طلبات واردة</div>';
   h += '<h2>متفق عليها</h2>';
   h += acc.length ? acc.map(r => { const mineReq = r.from === me, other = mineReq ? r.by : r.from;
-      return `<div class="card cand ${mineReq ? '' : 'mine'}"><div class="row"><div class="nm">${mineReq ? `أ. ${esc(first(tName(r.by)))} يؤمّن حصتك` : `تؤمّن حصة أ. ${esc(first(tName(r.from)))}`}</div><span class="tag o">${KIND[r.kind]}</span></div>
+      return `<div class="card cand ${mineReq ? '' : 'mine'}"><div class="row"><div class="nm">${mineReq ? `أ. ${esc(tLabel(r.by))} يؤمّن حصتك` : `تؤمّن حصة أ. ${esc(tLabel(r.from))}`}</div><span class="tag o">${KIND[r.kind]}</span></div>
         <div class="why">${line(r)}</div><div class="acts">${waBtn(other, waMsg(other, {intro: `بخصوص ${KIND[r.kind]} الحصة التالية:`, rows: reqLines(r), sign: false}))}<button class="btn ghost sm" data-cx="${r.id}">إلغاء</button></div></div>`; }).join('')
     : '<div class="muted small" style="padding:8px 0">لا توجد حصص متفق عليها</div>';
   if (sent.length){
     h += '<h2>بانتظار الرد</h2>' + sent.map(r => { const dec = r.to.filter(x => x.r === 'declined').length;
       return `<div class="card cand"><div class="row"><div class="nm">${KIND[r.kind]} · ${esc(I.C[r.c]||r.c)}</div><span class="tag w">${r.to.length - dec} من ${r.to.length}</span></div>
-        <div class="why">${line(r)}<br>${r.to.map(x => esc(first(tName(x.t))) + (x.r === 'declined' ? ' (اعتذر)' : '')).join('، ')}</div>
+        <div class="why">${line(r)}<br>${r.to.map(x => esc(tLabel(x.t)) + (x.r === 'declined' ? ' (اعتذر)' : '')).join('، ')}</div>
         <div class="acts"><button class="btn ghost sm" data-cx="${r.id}">سحب الطلب</button></div></div>`; }).join('');
   }
   if (recent.length){
-    const st = r => r.status === 'declined' ? 'اعتذر الجميع' : r.status === 'expired' ? 'انتهى الوقت دون رد' : r.cx === 'admin' ? 'ألغاه المشرف' : `ألغاه أ. ${first(tName(r.cx))}`;
+    const st = r => r.status === 'declined' ? 'اعتذر الجميع' : r.status === 'expired' ? 'انتهى الوقت دون رد' : r.cx === 'admin' ? 'ألغاه المشرف' : `ألغاه أ. ${tLabel(r.cx)}`;
     h += '<h2>تحديثات</h2>' + recent.map(r => `<div class="card cand"><div class="row"><div class="nm">${KIND[r.kind]} · ${esc(I.C[r.c]||r.c)}</div><span class="tag g">${esc(st(r))}</span></div><div class="why">${line(r)}</div></div>`).join('');
   }
   $('#main').innerHTML = h;
@@ -672,8 +681,8 @@ function drawLog(){
   const F = {accepted:'مقبولة', pending:'معلّقة', cancelled:'ملغاة', all:'الكل'};
   $('#lf').innerHTML = Object.entries(F).map(([k,v]) => `<button class="chip ${LOGF===k?'on':''}" data-f="${k}">${v} (${k==='all' ? all.length : all.filter(r => r.status===k).length})</button>`).join('');
   const rows = all.filter(r => LOGF === 'all' || r.status === LOGF).slice(0, 150);
-  $('#lg').innerHTML = rows.map(r => `<div class="card cand"><div class="row"><div class="nm">${esc(first(tName(r.from)))} ← ${r.by ? esc(first(tName(r.by))) : '—'}</div><span class="tag ${ST[r.status][1]}">${KIND[r.kind]} · ${ST[r.status][0]}</span></div>
-    <div class="why">${esc(I.C[r.c]||r.c)} · ${esc(I.S[r.s]||'')} · ${esc(reqWhen(r))}${r.status==='cancelled' && r.cx ? ' · ألغاه ' + (r.cx==='admin' ? 'المشرف' : esc(first(tName(r.cx)))) : ''}</div>
+  $('#lg').innerHTML = rows.map(r => `<div class="card cand"><div class="row"><div class="nm">${esc(tLabel(r.from))} ← ${r.by ? esc(tLabel(r.by)) : '—'}</div><span class="tag ${ST[r.status][1]}">${KIND[r.kind]} · ${ST[r.status][0]}</span></div>
+    <div class="why">${esc(I.C[r.c]||r.c)} · ${esc(I.S[r.s]||'')} · ${esc(reqWhen(r))}${r.status==='cancelled' && r.cx ? ' · ألغاه ' + (r.cx==='admin' ? 'المشرف' : esc(tLabel(r.cx))) : ''}</div>
     ${['pending','accepted'].includes(r.status) && r.date >= td ? `<div class="acts"><button class="btn ghost sm" data-cx="${r.id}">إلغاء</button></div>` : ''}</div>`).join('') || '<div class="muted small" style="padding:8px 0">لا يوجد</div>';
   $('#lf').onclick = e => { const c = e.target.closest('.chip'); if (c){ LOGF = c.dataset.f; drawLog(); } };
   $('#lg').onclick = async e => { const b = e.target.closest('[data-cx]'); if (!b || !confirm('إلغاء هذا الطلب؟')) return;
