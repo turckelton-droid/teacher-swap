@@ -243,6 +243,8 @@ const KIND = {cover:'تأمين', swap:'تبديل'};
 const APP_URL = location.origin + location.pathname;
 
 const $ = s => document.querySelector(s);
+// توحيد الحروف للبحث فقط: أ إ آ ٱ ← ا، ة ← ه، ى ← ي، وحذف التشكيل والتطويل والمسافات الزائدة
+const norm = s => String(s ?? '').replace(/[\u064B-\u0652\u0670\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي').replace(/\s+/g,' ').trim();
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const store = {
   get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch(e){ return null; } },
@@ -325,7 +327,7 @@ function drawLogin(){
     el.innerHTML = `<label class="l">اختر اسمك</label><input class="f" id="q" placeholder="ابحث بالاسم…" autocomplete="off">
       <div class="card list" id="names" style="margin-top:10px;max-height:60vh;overflow:auto"></div>
       <div style="text-align:center;margin-top:10px"><button class="linkbtn" id="adm">دخول المشرف</button></div>`;
-    const draw = q => { const rows = L.list.filter(t => !q || t.name.includes(q)).slice(0, 80);
+    const draw = q => { const rows = L.list.filter(t => !q || norm(t.name).includes(norm(q))).slice(0, 80);
       $('#names').innerHTML = rows.map(t => `<div class="it" data-id="${esc(t.id)}"><span>${esc(t.name)}</span>${t.has_pin ? '' : '<span class="tag">جديد</span>'}</div>`).join('') || '<div class="empty">لا يوجد اسم مطابق</div>'; };
     draw(''); $('#q').oninput = e => draw(e.target.value.trim());
     $('#names').onclick = e => { const it = e.target.closest('.it'); if (!it) return; L.pick = L.list.find(t => t.id === it.dataset.id); L.mode = L.pick.has_pin ? 'pin' : 'setup'; L.pin=''; L.pin2=''; drawLogin(); };
@@ -643,7 +645,7 @@ function renderAdmin(){
     <h2>سجل الطلبات</h2><div class="chips" id="lf"></div><div id="lg"></div>
     <h2>المعلمين</h2><input class="f" id="q" placeholder="ابحث…"><div class="card list" id="tl" style="margin-top:8px"></div>
     <div style="margin:28px 0;text-align:center"><button class="linkbtn" id="out">تسجيل الخروج</button></div></div>`;
-  const draw = q => { $('#tl').innerHTML = B.teachers.filter(t => !q || t.name.includes(q)).sort((a,b) => a.name.localeCompare(b.name,'ar')).map(t =>
+  const draw = q => { $('#tl').innerHTML = B.teachers.filter(t => !q || norm(t.name).includes(norm(q))).sort((a,b) => a.name.localeCompare(b.name,'ar')).map(t =>
     `<div class="it"><span>${esc(t.name)} ${t.has_pin ? '<span class="tag o">مفعّل</span>' : '<span class="tag">غير مُفعَّل</span>'}</span>${t.has_pin ? `<button class="btn ghost sm" data-r="${esc(t.id)}">إعادة تعيين الرمز</button>` : ''}</div>`).join('') || '<div class="empty">ارفع الجدول أولًا</div>'; };
   draw(''); $('#q').oninput = e => draw(e.target.value.trim());
   drawLog();
