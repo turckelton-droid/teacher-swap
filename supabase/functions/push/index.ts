@@ -8,12 +8,12 @@ const KIND: Record<string, string> = { cover: "تأمين", swap: "تبديل" }
 const first = (n: string) => { const w = String(n || "").trim().split(/\s+/); return /^(عبد|عبدال|أبو|ابو)$/.test(w[0]) && w[1] ? w[0] + " " + w[1] : w[0]; };
 let CFG: any = null;
 
-async function send(to: string, title: string, body: string, tag: string) {
+async function send(to: string, title: string, body: string, tag: string, url = "./?tab=req") {
   let n = 0;
   const { data: subs } = await db.from("push_subs").select("endpoint,sub").eq("teacher_id", to);
   for (const s of subs || []) {
     try {
-      await webpush.sendNotification(s.sub, JSON.stringify({ title, body, tag, url: "./?tab=req" }), { TTL: 6 * 3600, urgency: "high" });
+      await webpush.sendNotification(s.sub, JSON.stringify({ title, body, tag, url }), { TTL: 6 * 3600, urgency: "high" });
       n++;
     } catch (e: any) {
       if (e?.statusCode === 404 || e?.statusCode === 410) await db.from("push_subs").delete().eq("endpoint", s.endpoint);
@@ -23,11 +23,31 @@ async function send(to: string, title: string, body: string, tag: string) {
   return n;
 }
 
+// ملخص اليوم للمدير: اتفاقات اليوم + اللي لسه معلّق أو اتلغى
+const label = (n: string) => { const w = String(n || "").trim().split(/\s+/), f = first(n); return w.length > f.split(" ").length ? f + " " + w[w.length - 1] : f; };
+async function summary(date: string) {
+  const { data: rs } = await db.from("requests").select("*").eq("on_date", date).order("period");
+  const all = rs || [];
+  const { data: ts } = await db.from("teachers").select("id,name");
+  const { data: cs } = await db.from("classes").select("id,name");
+  const nm = (id: string) => label((ts || []).find((t: any) => t.id === id)?.name || "");
+  const cl = (id: string) => (cs || []).find((c: any) => c.id === id)?.name || "";
+  const acc = all.filter((r: any) => r.status === "accepted");
+  const cnt = (s: string) => all.filter((r: any) => r.status === s).length;
+  const d = new Date(date + "T00:00:00Z");
+  const title = `ملخص اليوم · ${DAYS[d.getUTCDay()]} ${d.getUTCDate()}/${d.getUTCMonth() + 1}`;
+  const lines = acc.map((r: any) => `ح${r.period} ${cl(r.class_id)}: ${nm(r.from_teacher)} ← ${nm(r.accepted_by)} (${KIND[r.kind]})`);
+  const extra = [cnt("cancelled") && `ملغاة: ${cnt("cancelled")}`, cnt("declined") && `اعتذر الجميع: ${cnt("declined")}`, cnt("expired") && `دون رد: ${cnt("expired")}`].filter(Boolean).join(" · ");
+  const body = (acc.length ? `اتفاقات اليوم (${acc.length}):\n` + lines.join("\n") : "لا توجد اتفاقات اليوم.") + (extra ? "\n" + extra : "");
+  return await send("mgr", title, body, "sum" + date, "./?tab=sum");
+}
+
 Deno.serve(async (req) => {
   if (!CFG) CFG = (await db.from("push_cfg").select("*").eq("id", 1).single()).data;
   if (!CFG || req.headers.get("x-hook-secret") !== CFG.hook_secret) return new Response("no", { status: 401 });
   const ev = await req.json();
   webpush.setVapidDetails("https://teacher-swap.pages.dev", CFG.vapid_pub, CFG.vapid_priv);
+  if (ev.ev === "summary") return new Response(JSON.stringify({ sent: await summary(ev.date) }));
   if (ev.ev === "test") return new Response(JSON.stringify({ sent: await send(ev.to, "تم تفعيل الإشعارات ✓", "ستصلك هنا تنبيهات الطلبات في «بديل».", "test") }));
   const { data: r } = await db.from("requests").select("*").eq("id", ev.id).single();
   if (!r) return new Response("gone");

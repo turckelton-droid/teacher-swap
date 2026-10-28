@@ -278,7 +278,7 @@ const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 const DAY_FALLBACK = {1:'الأحد',2:'الإثنين',3:'الثلاثاء',4:'الأربعاء',5:'الخميس'};
 const ERR = {pin_format:'يجب أن يتكون الرمز من 4 أرقام', already_set:'هذا الحساب مُفعَّل مسبقًا. ادخل برمزك، أو اضغط «نسيت الرمز؟»', no_teacher:'الاسم غير موجود',
   no_account:'الحساب غير مُفعَّل', locked:'محاولات خاطئة كثيرة. حاول بعد ربع ساعة', bad_pin:'الرمز غير صحيح', no_session:'انتهت الجلسة، سجّل الدخول مجددًا',
-  not_admin:'للمشرف فقط', date_required:'اختر اليوم والحصص', class_required:'اختر الصف',
+  not_admin:'للمشرف فقط', no_phone:'لا يوجد رقم واتساب مسجّل باسمك. تواصل مع المشرف', code_format:'الرمز 6 أرقام', code_same:'اختر رمزًا مختلفًا عن رمز المشرف', date_required:'اختر اليوم والحصص', class_required:'اختر الصف',
   too_late:'بدأ وقت هذه الحصة', no_lesson:'لا توجد لديك حصة في هذا الوقت', targets_required:'اختر زميلًا واحدًا على الأقل',
   too_many_targets:'اختر 15 زميلًا على الأكثر', already_requested:'أرسلت طلبًا لهذه الحصة من قبل', not_found:'الطلب غير موجود',
   not_target:'هذا الطلب غير موجّه إليك', not_pending:'لم يعد الطلب متاحًا؛ ربما قبله زميل آخر أو أُلغي', not_free:'لست متفرغًا في هذه الحصة',
@@ -307,7 +307,7 @@ async function rpc(fn, args, keep){
 function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('on'), 2200); }
 
 const S = { token: store.get('ts_token'), bundle: store.get('ts_bundle'), I: null, tab: 'day', date: store.get('ts_date') };
-{ const q = new URLSearchParams(location.search).get('tab'); if (q === 'req') { S.tab = 'req'; history.replaceState(null, '', location.pathname); } }
+{ const q = new URLSearchParams(location.search).get('tab'); if (q === 'req' || q === 'sum') { if (q === 'req') S.tab = 'req'; history.replaceState(null, '', location.pathname); } }
 const today = () => iso(new Date());
 
 function waPhone(raw){
@@ -382,7 +382,7 @@ function drawLogin(){
     if (!L.list.length){ el.innerHTML = `<div class="empty">لم يُرفع الجدول بعد. يُرجى من المشرف رفع ملف الجدول أولًا.</div><div style="text-align:center"><button class="linkbtn" id="adm">دخول المشرف</button></div>`; $('#adm').onclick = () => { L.mode='admin'; L.pin=''; drawLogin(); }; return; }
     el.innerHTML = `<label class="l" for="q">ابحث باسمك</label><input class="f" id="q" placeholder="ابحث بالاسم…" autocomplete="off">
       <div class="card list" id="names" style="margin-top:10px;max-height:60vh;overflow:auto"></div>
-      <div style="text-align:center;margin-top:10px"><button class="linkbtn" id="adm">دخول المشرف</button></div>`;
+      <div style="text-align:center;margin-top:10px"><button class="linkbtn" id="adm">دخول المشرف / المدير</button></div>`;
     const draw = q => { const rows = L.list.filter(t => !q || norm(t.name).includes(norm(q))).slice(0, 80);
       $('#names').innerHTML = rows.map(t => `<div class="it" data-id="${esc(t.id)}"><span>${esc(t.name)}${t.has_pin ? '' : ' <span class="tag">جديد</span>'}</span><span class="go">اختيار</span></div>`).join('') || '<div class="empty">لا يوجد اسم مطابق</div>'; };
     draw(''); $('#q').oninput = e => draw(e.target.value.trim());
@@ -392,7 +392,7 @@ function drawLogin(){
   }
   if (L.mode === 'pin' || L.mode === 'admin'){
     const isAdm = L.mode === 'admin', len = isAdm ? 6 : 4;
-    el.innerHTML = `<div class="notch pinbox"><div class="who">${isAdm ? 'رمز المشرف' : esc(L.pick.name)}</div>
+    el.innerHTML = `<div class="notch pinbox"><div class="who">${isAdm ? 'رمز المشرف / المدير' : esc(L.pick.name)}</div>
       <div class="muted small">${isAdm ? '6 أرقام' : 'أدخل رمزك السري'}</div>
       <div class="pin">${Array.from({length: len}, (_, i) => `<span class="${i < L.pin.length ? 'on' : ''}"></span>`).join('')}</div>
       <div class="pad">${[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map(k => k === '' ? '<span></span>' : `<button data-k="${k}">${k}</button>`).join('')}</div>
@@ -436,17 +436,21 @@ function drawLogin(){
     return;
   }
   if (L.mode === 'setup'){
-    el.innerHTML = `<div class="card sec"><div style="font-weight:700;font-size:20px">${esc(L.pick.name)}</div><div class="muted small">الدخول الأول: أنشئ رمزًا سريًا من 4 أرقام.</div>
+    el.innerHTML = `<div class="card sec"><div style="font-weight:700;font-size:20px">${esc(L.pick.name)}</div><div class="muted small">الدخول الأول: للتأكد أنه حسابك، اكتب آخر 4 أرقام من رقم الواتساب المسجّل باسمك، ثم أنشئ رمزًا سريًا.</div>
+      <label class="l">آخر 4 أرقام من رقم الواتساب</label><input class="f" id="ph4" inputmode="numeric" maxlength="4" dir="ltr" autocomplete="off">
       <label class="l">الرمز السري (4 أرقام)</label><input class="f" id="p1" inputmode="numeric" maxlength="4" type="password" autocomplete="new-password">
       <label class="l">أكّد الرمز</label><input class="f" id="p2" inputmode="numeric" maxlength="4" type="password" autocomplete="new-password">
       <div class="err" id="er"></div><button class="btn block" id="go">تفعيل</button>
       <div style="text-align:center"><button class="linkbtn" id="back">رجوع</button></div></div>`;
     $('#back').onclick = () => { L.mode='list'; drawLogin(); };
     $('#go').onclick = async () => {
-      const a = $('#p1').value, b = $('#p2').value;
+      const ph = $('#ph4').value.replace(/\D/g,''), a = $('#p1').value, b = $('#p2').value;
+      if (ph.length !== 4) return $('#er').textContent = 'اكتب آخر 4 أرقام من رقم الواتساب';
       if (!/^\d{4}$/.test(a)) return $('#er').textContent = ERR.pin_format;
       if (a !== b) return $('#er').textContent = 'الرمزان غير متطابقين';
-      try { const tok = await rpc('setup_account', {p_teacher: L.pick.id, p_pin: a, p_phone: null}); await enter(tok); }
+      try { const tok = await rpc('setup_account', {p_teacher: L.pick.id, p_pin: a, p_phone: ph});
+        if (!tok) return $('#er').textContent = 'الأرقام غير مطابقة للرقم المسجّل باسمك';
+        await enter(tok); }
       catch(err){ $('#er').textContent = err.message; }
     };
   }
@@ -457,7 +461,7 @@ async function enter(tok){ S.token = tok; store.set('ts_token', tok); LOGIN.mode
 function route(){
   if (!S.token || !S.bundle){ renderLogin(); return; }
   S.I = S.I || buildIndex(S.bundle);
-  if (S.bundle.is_admin) return renderAdmin();
+  if (S.bundle.is_admin || S.bundle.is_viewer) return renderAdmin();
   document.body.style.paddingBottom = '';
   if (!S.date || S.date < today() || !dayOf(S.date)) S.date = schoolDates(today(), 1)[0];
   const opp = opportunities(S.I, S.bundle, S.bundle.me, today()).length, inc = incoming().length;
@@ -750,10 +754,13 @@ let PARSED = null;
 function renderAdmin(){
   document.body.style.paddingBottom = '16px';
   const B = S.bundle;
+  if (B.is_viewer) return renderViewer();
   $('#app').innerHTML = `<div class="wrap">${hdr('لوحة المشرف', `${B.teachers.length} معلم، ${B.classes.length} صف، ${B.schedule.length} حصة`)}
     <div class="card sec"><div style="font-weight:600">رفع الجدول (XML)</div><div class="muted small">ملف التصدير من برنامج الجداول. تبقى الرموز السرية وأرقام المعلمين كما هي.</div>
       <input type="file" id="xf" accept=".xml,text/xml" class="f" style="margin-top:10px"><div id="pv" class="small" style="margin-top:10px"></div>
       <button class="btn block hide" id="imp" style="margin-top:10px">اعتماد الجدول</button></div>
+    <div class="card sec"><div style="font-weight:600">حساب المدير (متابعة فقط)</div><div class="muted small">${B.has_viewer ? 'مُفعَّل ✓ — المدير يدخل من «دخول المشرف / المدير» بهذا الرمز. يرى السجل وملخص اليوم الساعة 12 ظهرًا، ولا يستطيع الإلغاء أو التعديل.' : 'اختر رمزًا من 6 أرقام للمدير. يدخل به من «دخول المشرف / المدير» ويرى السجل وملخص اليوم الساعة 12 ظهرًا.'}</div>
+      <div style="display:flex;gap:8px;margin-top:10px"><input class="f" id="vc" inputmode="numeric" maxlength="6" dir="ltr" placeholder="6 أرقام" autocomplete="off"><button class="btn" id="vcs">${B.has_viewer ? 'تغيير' : 'حفظ'}</button></div></div>
     <h2>سجل الطلبات</h2><div class="chips" id="lf"></div><div id="lg"></div>
     <h2>المعلمين</h2><input class="f" id="q" placeholder="ابحث…"><div class="card list" id="tl" style="margin-top:8px"></div>
     <div style="margin:28px 0;text-align:center"><button class="linkbtn" id="out">تسجيل الخروج</button></div></div>`;
@@ -775,6 +782,27 @@ function renderAdmin(){
   };
   $('#imp').onclick = async () => { if (!PARSED || !confirm('سيحلّ الجدول الجديد محلّ القديم. هل أنت متأكد؟')) return;
     try { const r = await rpc('admin_import', {p_token:S.token, p: PARSED}); await refresh(true); renderAdmin(); toast(`تم الاعتماد: ${r.teachers} معلمًا، ${r.lessons} حصة`); } catch(err){ toast(err.message); } };
+  $('#vcs').onclick = async () => { const c = $('#vc').value.replace(/\D/g,''); if (c.length !== 6) return toast(ERR.code_format);
+    if (B.has_viewer && !confirm('تغيير رمز المدير سيُخرجه من حسابه. متابعة؟')) return;
+    try { await rpc('set_viewer_code', {p_token:S.token, p_code:c}); await refresh(true); renderAdmin(); toast('تم حفظ رمز المدير ✓'); } catch(err){ toast(err.message); } };
+  $('#out').onclick = logout;
+}
+
+// حساب المدير: متابعة فقط
+function renderViewer(){
+  document.body.style.paddingBottom = '16px';
+  const I = S.I, td = today(), all = reqs(), T = all.filter(r => r.date === td).sort((a,b) => a.p - b.p);
+  const acc = T.filter(r => r.status === 'accepted'), pend = T.filter(r => r.status === 'pending');
+  const row = r => `<div class="card cand"><div class="row"><div class="nm">${esc(tLabel(r.from))} ← ${r.by ? esc(tLabel(r.by)) : '—'}</div><span class="tag ${ST[r.status][1]}">${KIND[r.kind]} · ${ST[r.status][0]}</span></div>
+    <div class="why">الحصة ${r.p} · ${esc(I.C[r.c]||r.c)} · ${esc(I.S[r.s]||'')}</div></div>`;
+  $('#app').innerHTML = `<div class="wrap">${hdr('متابعة المدير', `${dayName(dayOf(td))} ${fmtDate(td)}`)}
+    ${notifCard(false, 'فعّل الإشعارات ليصلك ملخص اليوم الساعة 12 ظهرًا.')}
+    <h2>اتفاقات اليوم (${acc.length})</h2>${acc.map(row).join('') || '<div class="muted small" style="padding:8px 0">لا توجد اتفاقات اليوم حتى الآن</div>'}
+    ${pend.length ? `<h2>بانتظار الرد اليوم (${pend.length})</h2>${pend.map(row).join('')}` : ''}
+    <h2>سجل الطلبات</h2><div class="chips" id="lf"></div><div id="lg"></div>
+    <h2>الإشعارات</h2>${notifCard(true)}
+    <div style="margin:28px 0;text-align:center"><button class="linkbtn" id="out">تسجيل الخروج</button></div></div>`;
+  drawLog(); bindNotif();
   $('#out').onclick = logout;
 }
 
@@ -787,7 +815,7 @@ function drawLog(){
   const rows = all.filter(r => LOGF === 'all' || r.status === LOGF).slice(0, 150);
   $('#lg').innerHTML = rows.map(r => `<div class="card cand"><div class="row"><div class="nm">${esc(tLabel(r.from))} ← ${r.by ? esc(tLabel(r.by)) : '—'}</div><span class="tag ${ST[r.status][1]}">${KIND[r.kind]} · ${ST[r.status][0]}</span></div>
     <div class="why">${esc(I.C[r.c]||r.c)} · ${esc(I.S[r.s]||'')} · ${esc(reqWhen(r))}${r.status==='cancelled' && r.cx ? ' · ألغاه ' + (r.cx==='admin' ? 'المشرف' : esc(tLabel(r.cx))) : ''}</div>
-    ${['pending','accepted'].includes(r.status) && r.date >= td ? `<div class="acts"><button class="btn ghost sm" data-cx="${r.id}">إلغاء</button></div>` : ''}</div>`).join('') || '<div class="muted small" style="padding:8px 0">لا يوجد</div>';
+    ${!S.bundle.is_viewer && ['pending','accepted'].includes(r.status) && r.date >= td ? `<div class="acts"><button class="btn ghost sm" data-cx="${r.id}">إلغاء</button></div>` : ''}</div>`).join('') || '<div class="muted small" style="padding:8px 0">لا يوجد</div>';
   $('#lf').onclick = e => { const c = e.target.closest('.chip'); if (c){ LOGF = c.dataset.f; drawLog(); } };
   $('#lg').onclick = async e => { const b = e.target.closest('[data-cx]'); if (!b || !confirm('إلغاء هذا الطلب؟')) return;
     try { await rpc('cancel_request', {p_token:S.token, p_id:+b.dataset.cx}); await refresh(true); drawLog(); toast('تم الإلغاء'); } catch(err){ toast(err.message); } };
@@ -813,7 +841,7 @@ const swReady = 'serviceWorker' in navigator ? navigator.serviceWorker.register(
 if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => {
   const m = e.data || {};
   if (m.t === 'push') poll();
-  if (m.t === 'open' && S.token && S.bundle && !S.bundle.is_admin){ S.tab = 'req'; closeSheet(); refresh(true).then(route); }
+  if (m.t === 'open' && S.token && S.bundle && !S.bundle.is_admin){ if (!S.bundle.is_viewer) S.tab = 'req'; closeSheet(); refresh(true).then(route); }
 });
 function b64u(s){ const p = '='.repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g,'+').replace(/_/g,'/')); return Uint8Array.from(b, c => c.charCodeAt(0)); }
 async function subscribe(){
@@ -834,13 +862,13 @@ async function syncPush(){ if (!PUSH_OK || !S.token || !S.bundle || S.bundle.is_
 function dropPush(){ const ep = store.get('ts_push'); store.del('ts_push'); if (ep) rpc('delete_push_sub', {p_endpoint: ep}).catch(() => {});
   swReady.then(r => r && r.pushManager.getSubscription()).then(s => s && s.unsubscribe()).catch(() => {}); }
 const BELL = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="flex:0 0 auto"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 0 0 4 0"/></svg>';
-function notifCard(full){
+function notifCard(full, msg){
   const st = PUSH_OK ? Notification.permission : (IS_IOS && !STANDALONE ? 'ios' : 'no');
   if (st === 'granted') return full ? `<div class="muted small" style="display:flex;align-items:center;gap:10px">مفعّلة ✓ <button class="btn ghost sm" id="pushTest">إشعار تجربة</button></div>` : '';
   if (st === 'denied') return full ? '<div class="muted small">الإشعارات محظورة. فعّلها من إعدادات المتصفح للموقع.</div>' : '';
   if (st === 'no') return full ? '<div class="muted small">هذا المتصفح لا يدعم الإشعارات.</div>' : '';
   if (st === 'ios') return `<div class="notif">${BELL}<div class="grow">لتصلك الإشعارات على الآيفون: من Safari اضغط زر المشاركة ← «إضافة إلى الشاشة الرئيسية»، ثم افتح «بديل» من الأيقونة.</div></div>`;
-  return `<div class="notif">${BELL}<div class="grow">فعّل الإشعارات ليصلك تنبيه فور وصول طلب أو قبوله.</div><button class="btn sm" id="pushOn">تفعيل</button></div>`;
+  return `<div class="notif">${BELL}<div class="grow">${msg || 'فعّل الإشعارات ليصلك تنبيه فور وصول طلب أو قبوله.'}</div><button class="btn sm" id="pushOn">تفعيل</button></div>`;
 }
 function bindNotif(){ const b = $('#pushOn'); if (b) b.onclick = enablePush;
   const t = $('#pushTest'); if (t) t.onclick = async () => { try { await subscribe(); await rpc('test_push', {p_token: S.token}); toast('أُرسل إشعار تجربة'); } catch(e){ toast('تعذّر الإرسال'); } }; }
