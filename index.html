@@ -11,6 +11,7 @@
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-title" content="بديل">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@600&display=swap&text=%D9%85%D9%86%20%D8%A3%D8%AF%D9%88%D8%A7%D8%AA%20%D8%A3.%20%D8%A3%D8%AD%D9%85%D8%AF%20%D8%AC%D9%85%D8%A7%D9%84">
 <style>
 @font-face{font-family:"KO Sans";src:url(fonts/KOSans-Regular.woff2) format("woff2");font-weight:400;font-display:swap}
 @font-face{font-family:"KO Sans";src:url(fonts/KOSans-Medium.woff2) format("woff2");font-weight:500;font-display:swap}
@@ -24,7 +25,7 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"KO Sans",system-ui,sans-serif;font-size:16px}
-body{padding-bottom:calc(92px + env(safe-area-inset-bottom))}
+body{padding-bottom:calc(118px + env(safe-area-inset-bottom))}
 button,input,select,textarea{font:inherit;color:inherit}
 b,strong{font-weight:700}
 .wrap{max-width:560px;margin:0 auto;padding:0 18px}
@@ -85,7 +86,13 @@ label.l{display:block;font-size:14px;color:var(--muted);margin:16px 0 8px}
 .tag.w{background:var(--warn-soft);color:var(--warn)} .tag.o{background:var(--ok-soft);color:var(--ok)} .tag.g{background:var(--field);color:var(--muted)}
 .panel .tag{background:var(--dk-line);color:#e6e4dc} .panel .tag.o{color:var(--acc)} .panel .tag.w{color:#ffb37a}
 
-nav.tabs{position:fixed;bottom:0;inset-inline:0;background:var(--bg);border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:center;padding:10px 8px calc(10px + env(safe-area-inset-bottom));z-index:10}
+nav.tabs{position:fixed;bottom:0;inset-inline:0;background:var(--bg);border-top:1px solid var(--line);padding:10px 8px calc(6px + env(safe-area-inset-bottom));z-index:10}
+nav.tabs .tb{display:flex;justify-content:space-around;align-items:center}
+.credit{font-family:"Reem Kufi","KO Sans",sans-serif;font-weight:600;font-size:13px;color:var(--ink);opacity:.75;text-align:left;direction:rtl;padding:6px 14px 0}
+.upd{position:fixed;inset-inline:0;bottom:calc(118px + env(safe-area-inset-bottom));z-index:11;text-align:center;pointer-events:none}
+.upd button{pointer-events:auto;border:0;background:var(--acc);color:var(--ink);font:inherit;font-size:13px;font-weight:500;padding:6px 14px;border-radius:999px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.notif{display:flex;align-items:center;gap:10px;padding:12px 14px;margin:12px 0 0;border:2px dashed var(--ink);border-radius:18px;font-size:14px}
+.notif .grow{flex:1;line-height:1.5}
 nav.tabs button{background:none;border:0;padding:8px 10px;color:var(--muted);font-size:12px;font-weight:500;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;min-width:68px;border-radius:20px}
 nav.tabs button.on{background:var(--dk);color:#fff}
 nav.tabs button.on svg{color:var(--acc)}
@@ -269,7 +276,7 @@ if (typeof module !== 'undefined') module.exports = Object.assign(module.exports
 const SB_URL = 'https://elgeadktiazterzwaxyn.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsZ2VhZGt0aWF6dGVyendheHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwNzUyNDUsImV4cCI6MjEwODY1MTI0NX0.hKMWNtFxE8ULBmwrXsoBJSOAZHuZ196CYaqGDIYwek4';
 const DAY_FALLBACK = {1:'الأحد',2:'الإثنين',3:'الثلاثاء',4:'الأربعاء',5:'الخميس'};
-const ERR = {pin_format:'يجب أن يتكون الرمز من 4 أرقام', already_set:'هذا الحساب مُفعَّل مسبقًا. ادخل برمزك، أو اطلب من المشرف إعادة تعيينه',
+const ERR = {pin_format:'يجب أن يتكون الرمز من 4 أرقام', already_set:'هذا الحساب مُفعَّل مسبقًا. ادخل برمزك، أو اضغط «نسيت الرمز؟»', no_teacher:'الاسم غير موجود',
   no_account:'الحساب غير مُفعَّل', locked:'محاولات خاطئة كثيرة. حاول بعد ربع ساعة', bad_pin:'الرمز غير صحيح', no_session:'انتهت الجلسة، سجّل الدخول مجددًا',
   not_admin:'للمشرف فقط', date_required:'اختر اليوم والحصص', class_required:'اختر الصف',
   too_late:'بدأ وقت هذه الحصة', no_lesson:'لا توجد لديك حصة في هذا الوقت', targets_required:'اختر زميلًا واحدًا على الأقل',
@@ -290,8 +297,8 @@ const store = {
   set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} },
   del(k){ try { localStorage.removeItem(k); } catch(e){} }
 };
-async function rpc(fn, args){
-  const r = await fetch(SB_URL + '/rest/v1/rpc/' + fn, {method:'POST',
+async function rpc(fn, args, keep){
+  const r = await fetch(SB_URL + '/rest/v1/rpc/' + fn, {method:'POST', keepalive: !!keep,
     headers:{'Content-Type':'application/json', apikey: SB_KEY, Authorization:'Bearer ' + SB_KEY}, body: JSON.stringify(args || {})});
   const txt = await r.text(); let j = null; try { j = txt ? JSON.parse(txt) : null; } catch(e){}
   if (!r.ok){ const code = (j && j.message) || 'error'; const e = new Error(ERR[code] || ('حدث خطأ، حاول مرة أخرى' + (code !== 'error' ? ' (' + String(code).slice(0, 80) + ')' : ''))); e.code = code; throw e; }
@@ -299,7 +306,8 @@ async function rpc(fn, args){
 }
 function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('on'), 2200); }
 
-const S = { token: store.get('ts_token'), bundle: store.get('ts_bundle'), I: null, tab: 'day', date: null };
+const S = { token: store.get('ts_token'), bundle: store.get('ts_bundle'), I: null, tab: 'day', date: store.get('ts_date') };
+{ const q = new URLSearchParams(location.search).get('tab'); if (q === 'req') { S.tab = 'req'; history.replaceState(null, '', location.pathname); } }
 const today = () => iso(new Date());
 
 function waPhone(raw){
@@ -355,7 +363,7 @@ async function refresh(silent){
     if (!silent) toast('لا يوجد اتصال، تُعرض آخر نسخة محفوظة');
   }
 }
-function logout(){ S.token = null; S.bundle = null; S.I = null; store.del('ts_token'); store.del('ts_bundle'); renderLogin(); }
+function logout(){ dropPush(); S.token = null; S.bundle = null; S.I = null; store.del('ts_token'); store.del('ts_bundle'); renderLogin(); }
 
 // ---------- Login ----------
 let LOGIN = {list: [], pick: null, mode: 'list', pin: '', pin2: '', phone: ''};
@@ -388,8 +396,9 @@ function drawLogin(){
       <div class="muted small">${isAdm ? '6 أرقام' : 'أدخل رمزك السري'}</div>
       <div class="pin">${Array.from({length: len}, (_, i) => `<span class="${i < L.pin.length ? 'on' : ''}"></span>`).join('')}</div>
       <div class="pad">${[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map(k => k === '' ? '<span></span>' : `<button data-k="${k}">${k}</button>`).join('')}</div>
-      <div class="err" id="er"></div><button class="linkbtn" id="back">رجوع</button></div>`;
+      <div class="err" id="er"></div>${isAdm ? '' : '<button class="linkbtn" id="forgot">نسيت الرمز؟</button>'}<button class="linkbtn" id="back">رجوع</button></div>`;
     $('#back').onclick = () => { L.mode='list'; drawLogin(); };
+    if ($('#forgot')) $('#forgot').onclick = () => { L.mode='reset'; drawLogin(); };
     el.querySelector('.pad').onclick = async e => {
       const k = e.target.dataset && e.target.dataset.k; if (k === undefined) return;
       if (k === '⌫') L.pin = L.pin.slice(0,-1); else if (L.pin.length < len) L.pin += k;
@@ -401,6 +410,28 @@ function drawLogin(){
           await enter(tok);
         } catch(err){ $('#er').textContent = err.message; L.pin=''; el.querySelectorAll('.pin span').forEach(s => s.classList.remove('on')); }
       }
+    };
+    return;
+  }
+  if (L.mode === 'reset'){
+    el.innerHTML = `<div class="card sec"><div style="font-weight:700;font-size:20px">${esc(L.pick.name)}</div><div class="muted small">نسيت الرمز؟ اكتب رقم الواتساب المسجّل باسمك، ثم اختر رمزًا جديدًا.</div>
+      <label class="l">رقم الواتساب</label><input class="f" id="rph" inputmode="tel" dir="ltr" placeholder="9xxxxxxx" autocomplete="tel">
+      <label class="l">الرمز الجديد (4 أرقام)</label><input class="f" id="p1" inputmode="numeric" maxlength="4" type="password" autocomplete="new-password">
+      <label class="l">أكّد الرمز</label><input class="f" id="p2" inputmode="numeric" maxlength="4" type="password" autocomplete="new-password">
+      <div class="err" id="er"></div><button class="btn block" id="go">حفظ الرمز الجديد</button>
+      <div class="muted small" style="margin-top:10px">لو رقمك تغيّر، اطلب من المشرف تعديله.</div>
+      <div style="text-align:center"><button class="linkbtn" id="back">رجوع</button></div></div>`;
+    $('#back').onclick = () => { L.mode='pin'; L.pin=''; drawLogin(); };
+    $('#go').onclick = async () => {
+      const ph = $('#rph').value.replace(/\D/g,''), a = $('#p1').value, b = $('#p2').value;
+      if (ph.length < 8) return $('#er').textContent = 'اكتب رقم الواتساب كاملًا (8 أرقام)';
+      if (!/^\d{4}$/.test(a)) return $('#er').textContent = ERR.pin_format;
+      if (a !== b) return $('#er').textContent = 'الرمزان غير متطابقين';
+      try {
+        const tok = await rpc('reset_pin', {p_teacher: L.pick.id, p_phone: ph, p_pin: a});
+        if (!tok) return $('#er').textContent = 'الرقم غير مطابق للرقم المسجّل باسمك';
+        L.pick.has_pin = true; toast('تم تغيير الرمز ✓'); await enter(tok);
+      } catch(err){ $('#er').textContent = err.message; }
     };
     return;
   }
@@ -420,7 +451,7 @@ function drawLogin(){
     };
   }
 }
-async function enter(tok){ S.token = tok; store.set('ts_token', tok); LOGIN.mode = 'list'; LOGIN.pin = ''; await refresh(); if (S.bundle) route(); }
+async function enter(tok){ S.token = tok; store.set('ts_token', tok); LOGIN.mode = 'list'; LOGIN.pin = ''; await refresh(); if (S.bundle){ route(); syncPush(); } }
 
 // ---------- Main ----------
 function route(){
@@ -432,12 +463,12 @@ function route(){
   const opp = opportunities(S.I, S.bundle, S.bundle.me, today()).length, inc = incoming().length;
   const me = S.I.T[S.bundle.me];
   $('#app').innerHTML = `<div class="wrap">${hdr(me ? 'أهلًا ' + esc(first(me.name)) : 'أهلًا')}<main id="main"></main></div>
-  <nav class="tabs">
+  <nav class="tabs"><div class="tb">
     <button data-t="day" class="${S.tab==='day'?'on':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>حصصي</button>
     <button data-t="req" class="${S.tab==='req'?'on':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H8l-4 4z"/></svg><span>طلباتي${inc ? `<span class="badge">${inc}</span>` : ''}</span></button>
     <button data-t="opp" class="${S.tab==='opp'?'on':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3l4 4-4 4M21 7H8M7 21l-4-4 4-4M3 17h13"/></svg><span>مواعيد الزملاء${opp ? `<span class="badge">${opp}</span>` : ''}</span></button>
     <button data-t="me" class="${S.tab==='me'?'on':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/></svg>حالتي</button>
-  </nav>`;
+  </div><div class="credit">من أدوات أ. أحمد جمال</div></nav>`;
   document.querySelector('nav.tabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.tab = b.dataset.t; route(); };
   ({day: renderDay, req: renderReq, opp: renderOpp, me: renderMe})[S.tab]();
 }
@@ -453,7 +484,7 @@ function renderDay(){
   const mine = (I.byTeacher[me]||[]).filter(x => x.d === d);
   const myAppts = new Set(S.bundle.flags.filter(f => f.kind==='appointment' && f.teacher_id===me && f.on_date===S.date).flatMap(f => f.periods||[]));
   const per = S.bundle.periods.length ? S.bundle.periods.map(p => p.period) : [1,2,3,4,5,6,7];
-  $('#main').innerHTML = `<div class="stats">
+  $('#main').innerHTML = `${notifCard()}<div class="stats">
       ${stat(mine.length, S.date === td ? 'حصص اليوم' : 'حصص ' + esc(dayName(d)), '<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M8 3v4M16 3v4M4 10h16"/>')}
       ${stat(incoming().length, 'طلبات واردة', '<path d="M4 13l2.5-7h11L20 13v6H4z"/><path d="M4 13h5l1 2h4l1-2h5"/>', 'req')}
       ${stat(nAcc, 'متفق عليها', '<circle cx="12" cy="12" r="8"/><path d="m8.5 12 2.5 2.5 4.5-5"/>', 'req')}
@@ -472,8 +503,9 @@ function renderDay(){
       return `<div class="slot" data-p="${p}"><div class="n">${p}</div><div class="b"><div class="t">${esc(I.C[l.c]||l.c)} ${myAppts.has(p)?'<span class="tag w">لديك موعد</span>':''}${rtag}</div>
         <div class="muted small">${esc(I.S[l.s]||'')} · ${esc(pTime(p))}</div></div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted)"><path d="M15 6l-6 6 6 6"/></svg></div>`; }).join('')}
     ${mine.length ? '' : '<div class="empty" style="color:var(--dk-muted)">لا توجد حصص في هذا اليوم</div>'}</div>`;
+  bindNotif();
   $('#main').querySelector('.stats').onclick = e => { const b = e.target.closest('[data-go]'); if (b){ S.tab = b.dataset.go; route(); } };
-  $('#main').querySelector('.chips').onclick = e => { const c = e.target.closest('.chip'); if (!c) return; S.date = c.dataset.d; renderDay(); };
+  $('#main').querySelector('.chips').onclick = e => { const c = e.target.closest('.chip'); if (!c) return; S.date = c.dataset.d; store.set('ts_date', S.date); renderDay(); };
   $('#slots').onclick = e => { const r = e.target.closest('.slot[data-r]'); if (r){ S.tab = 'req'; route(); return; } const s = e.target.closest('.slot[data-p]'); if (s) openSlot(+s.dataset.p); };
   const on = $('#main').querySelector('.chip.on'); on && on.scrollIntoView({inline:'center', block:'nearest'});
 }
@@ -482,16 +514,19 @@ function openSheet(html){ $('#sheetBody').innerHTML = html; $('#sheetBg').style.
 function closeSheet(){ $('#sheet').classList.remove('open'); $('#sheetBg').style.display = 'none'; }
 $('#sheetBg').onclick = closeSheet;
 
+// sel: {on} = ممكن يتبعتله طلب (زر الواتساب نفسه بيسجّل الطلب)، {sent} = اتبعتله خلاص
 function candCard(t, why, msg, tags, sel){
   const link = waLink(t, msg);
-  const selBtn = sel ? `<button class="btn ghost sm selbtn ${sel.on?'on':''}" data-sel="${esc(t)}">${sel.on ? '✓ مختار' : 'اختيار'}</button>` : '';
+  if (sel && sel.sent) tags = (tags||'') + '<span class="tag o">✓ أُرسل الطلب</span>';
+  const can = sel && !sel.sent;
+  const selBtn = can ? `<button class="btn ghost sm selbtn ${sel.on?'on':''}" data-sel="${esc(t)}">${sel.on ? '✓ مختار' : 'اختيار'}</button>` : '';
   return `<div class="card cand"><div class="row"><div class="nm">${esc(tName(t))}</div>${tags||''}</div><div class="why">${why}</div>
-    <div class="acts">${selBtn}${link ? `<a class="btn wa sm" href="${link}" target="_blank" rel="noopener" style="text-align:center;text-decoration:none">واتساب</a>` : `<button class="btn sm ghost" disabled>لا يوجد رقم</button>`}
+    <div class="acts">${selBtn}${link ? `<a class="btn wa sm" href="${link}" target="_blank" rel="noopener"${can ? ` data-wareq="${esc(t)}"` : ''} style="text-align:center;text-decoration:none">واتساب</a>` : `<button class="btn sm ghost" disabled>لا يوجد رقم</button>`}
     ${sel ? '' : `<button class="btn ghost sm" data-copy="${esc(msg)}">نسخ الرسالة</button>`}</div></div>`;
 }
 
 let PICK = new Set();
-function openSlot(p, mode, keep){
+function openSlot(p, mode, keep, more){
   const I = S.I, me = S.bundle.me, date = S.date, d = dayOf(date);
   const l = (I.byTeacher[me]||[]).find(x => x.d === d && x.p === p); if (!l) return;
   mode = mode || 'cover'; if (!keep) PICK = new Set();
@@ -499,7 +534,9 @@ function openSlot(p, mode, keep){
   const when = `${dayName(d)} ${fmtDate(date)} الحصة ${p}`;
   const head = `<div style="font-weight:700;font-size:17px">${esc(cls)} · ${esc(I.S[l.s]||'')}</div><div class="muted small">${esc(when)}${pTime(p)?' · '+esc(pTime(p)):''}</div>`;
   const rq = I.slotReq[me+'|'+date+'|'+p];
-  if (rq) return openReqStatus(rq, head);
+  if (rq && !(more && rq.status === 'pending')) return openReqStatus(rq, head, p);
+  if (rq) mode = rq.kind;
+  const sentTo = new Set(rq ? rq.to.map(x => x.t) : []);
   const late = started(date, p);
   let body = '', msgs = {};
   if (mode === 'cover'){
@@ -507,7 +544,7 @@ function openSlot(p, mode, keep){
     body = list.length ? list.slice(0, 25).map(x => {
       const tags = (x.isBehind ? '<span class="tag w">متأخر مع الصف</span>' : '') + (x.teaches && !x.isBehind ? '<span class="tag o">يدرّس الصف</span>' : '');
       const msg = msgs[x.t] = waMsg(x.t, {intro: 'أرجو منك التكرم بتأمين الحصة التالية:', rows: slotLines(date, p, cls), link: true, outro: THANKS});
-      return candCard(x.t, `متفرغ في هذا الوقت · لديه ${x.load} حصص في اليوم`, msg, tags, late ? null : {on: PICK.has(x.t)});
+      return candCard(x.t, `متفرغ في هذا الوقت · لديه ${x.load} حصص في اليوم`, msg, tags, late ? null : {on: PICK.has(x.t), sent: sentTo.has(x.t)});
     }).join('') : '<div class="empty">لا يوجد معلم متفرغ في هذه الحصة</div>';
   } else {
     const list = swapCandidates(I, me, date, p, l.c, today()), seen = new Set();
@@ -516,28 +553,39 @@ function openSlot(p, mode, keep){
       const msg = waMsg(x.t, {intro: 'أرجو منك التكرم بتبديل الحصة التالية معي:', rows: slotLines(date, p, cls) + `\n🔁 وآخذ حصتك مع الصف نفسه: ${dayName(x.d2)} ${fmtDate(x.date2)}، الحصة ${pLabel(x.p2)}`, link: true, outro: THANKS});
       if (!msgs[x.t]) msgs[x.t] = msg;
       const canSel = !late && !seen.has(x.t); seen.add(x.t);
-      return candCard(x.t, `يأخذ حصتك، وتأخذ حصته <b>${esc(w2)}</b> (${esc(I.S[x.subj]||'')})`, msg, x.isBehind ? '<span class="tag w">متأخر مع الصف</span>' : '', canSel ? {on: PICK.has(x.t)} : null);
+      return candCard(x.t, `يأخذ حصتك، وتأخذ حصته <b>${esc(w2)}</b> (${esc(I.S[x.subj]||'')})`, msg, x.isBehind ? '<span class="tag w">متأخر مع الصف</span>' : '', canSel ? {on: PICK.has(x.t), sent: sentTo.has(x.t)} : null);
     }).join('') : '<div class="empty">لا يوجد تبديل مناسب مع الصف نفسه في هذا الأسبوع</div>';
   }
   openSheet(`${head}
-    <div class="seg"><button data-m="cover" class="${mode==='cover'?'on':''}">تأمين</button><button data-m="swap" class="${mode==='swap'?'on':''}">تبديل</button></div>
+    ${rq ? `<div class="seg"><button class="on">${KIND[mode]} · أضف زملاء للطلب</button></div>` : `<div class="seg"><button data-m="cover" class="${mode==='cover'?'on':''}">تأمين</button><button data-m="swap" class="${mode==='swap'?'on':''}">تبديل</button></div>`}
     <div class="muted small" style="margin-bottom:4px">${mode==='cover' ? 'زميل متفرغ يؤمّن الحصة مكانك. يظهر أولًا المتأخرون في المنهج ومن يدرّسون الصف.' : 'زميل يدرّس الصف نفسه، فتتبادلان الحصتين. تتفقان لاحقًا على موعد ردّ الحصة.'}
-    ${late ? '' : '<br>اختر زميلًا أو أكثر وأرسل الطلب؛ أول من يقبل تُسجَّل الحصة باسمه.'}</div>
+    ${late ? '' : '<br>اضغط «واتساب» ليُسجَّل الطلب ويُرسل للزميل، أو اختر أكثر من زميل واضغط «أرسل الطلب». أول من يقبل تُسجَّل الحصة باسمه.'}</div>
     <div id="cands">${body}</div>
-    ${late ? '' : `<div class="sendbar"><button class="btn block" id="send" ${PICK.size?'':'disabled'}>أرسل الطلب${PICK.size ? ' إلى ' + PICK.size : ''}</button></div>`}
-    <button class="btn ghost block" id="mkappt" style="margin-top:8px">سجّل أن لديّ موعدًا في هذه الحصة</button>`);
-  $('#sheetBody').querySelector('.seg').onclick = e => { const b = e.target.closest('button'); if (b && b.dataset.m !== mode) openSlot(p, b.dataset.m); };
+    ${late || !body.includes('data-sel') && !PICK.size ? '' : `<div class="sendbar"><button class="btn block" id="send" ${PICK.size?'':'disabled'}>أرسل الطلب${PICK.size ? ' إلى ' + PICK.size : ''}</button></div>`}
+    ${rq ? '' : '<button class="btn ghost block" id="mkappt" style="margin-top:8px">سجّل أن لديّ موعدًا في هذه الحصة</button>'}`);
+  $('#sheetBody').querySelector('.seg').onclick = e => { const b = e.target.closest('button'); if (b && b.dataset.m && b.dataset.m !== mode) openSlot(p, b.dataset.m); };
   $('#cands').onclick = e => {
     const c = e.target.closest('[data-copy]'); if (c) return copy(c.dataset.copy);
+    const w = e.target.closest('[data-wareq]');
+    if (w){ // الواتساب بيفتح عادي، وفي نفس الوقت بنسجّل الطلب
+      const t = w.dataset.wareq; w.removeAttribute('data-wareq');
+      rpc('create_request', {p_token: S.token, p_kind: mode, p_date: date, p_period: p, p_targets: [t], p_note: null}, true)
+        .then(() => refresh(true)).then(() => {
+          toast('تم تسجيل الطلب وإرساله إلى أ. ' + first(tName(t)) + ' ✓');
+          if ($('#sheet').classList.contains('open')){ const sc = $('#sheet').scrollTop; openSlot(p, mode, true, true); $('#sheet').scrollTop = sc; }
+        }).catch(err => toast(err.message));
+      return;
+    }
     const s = e.target.closest('[data-sel]'); if (!s) return;
     const t = s.dataset.sel; PICK.has(t) ? PICK.delete(t) : PICK.add(t);
-    const sc = $('#sheet').scrollTop; openSlot(p, mode, true); $('#sheet').scrollTop = sc;
+    const sc = $('#sheet').scrollTop; openSlot(p, mode, true, more); $('#sheet').scrollTop = sc;
   };
   const sb = $('#send'); if (sb) sb.onclick = async () => {
     if (!PICK.size) return; sb.disabled = true;
     const to = [...PICK];
     try {
       await rpc('create_request', {p_token: S.token, p_kind: mode, p_date: date, p_period: p, p_targets: to, p_note: null});
+      PICK = new Set();
       await refresh(true);
       openSheet(`${head}<div class="empty" style="padding:16px 0 8px"><b>تم إرسال الطلب ✓</b><br>سيظهر لزملائك في «طلباتي». نبّههم عبر الواتساب:</div>
         ${to.map(t => `<div class="card cand"><div class="row"><div class="nm">${esc(tName(t))}</div>${waBtn(t, msgs[t]) || '<span class="muted small">لا يوجد رقم</span>'}</div></div>`).join('')}
@@ -545,13 +593,13 @@ function openSlot(p, mode, keep){
       $('#done').onclick = () => { closeSheet(); route(); };
     } catch(err){ toast(err.message); sb.disabled = false; }
   };
-  $('#mkappt').onclick = async () => {
+  if ($('#mkappt')) $('#mkappt').onclick = async () => {
     try { await rpc('add_flag', {p_token: S.token, p_kind:'appointment', p_class:null, p_date: date, p_periods:[p], p_note:null}); await refresh(true); toast('تم التسجيل، وسيظهر لزملائك في «مواعيد الزملاء»'); closeSheet(); route(); }
     catch(err){ toast(err.message); }
   };
 }
 
-function openReqStatus(r, head){
+function openReqStatus(r, head, p){
   const me = S.bundle.me, cls = S.I.C[r.c] || r.c;
   let html = head;
   if (r.status === 'accepted'){
@@ -566,9 +614,11 @@ function openReqStatus(r, head){
     const dec = r.to.filter(x => x.r === 'declined').length;
     html += `<div class="card cand" style="margin-top:12px"><div class="row"><div class="nm">طلب ${KIND[r.kind]} بانتظار الرد</div><span class="tag w">${r.to.length - dec} من ${r.to.length}</span></div>
       <div class="why">${r.to.map(x => esc(tLabel(x.t)) + (x.r === 'declined' ? ' (اعتذر)' : '')).join('، ')}</div></div>
+      ${p ? '<button class="btn block" id="more" style="margin-top:10px">أضف زملاء آخرين للطلب</button>' : ''}
       <button class="btn ghost block" id="cx" style="margin-top:10px">سحب الطلب</button>`;
     openSheet(html);
     $('#cx').onclick = () => cancelReq(r);
+    if ($('#more')) $('#more').onclick = () => openSlot(p, r.kind, false, true);
   }
 }
 
@@ -660,7 +710,9 @@ function renderMe(){
     <button class="btn ghost block" id="addAppt">+ موعد جديد</button>
     <h2>رقم الواتساب</h2><div style="display:flex;gap:8px"><input class="f" id="ph" inputmode="tel" dir="ltr" value="${esc(t.phone||'')}"><button class="btn" id="savePh">حفظ</button></div>
     <h2>الرمز السري</h2><div style="display:flex;gap:8px"><input class="f" id="po" inputmode="numeric" maxlength="4" type="password" placeholder="القديم"><input class="f" id="pn" inputmode="numeric" maxlength="4" type="password" placeholder="الجديد"><button class="btn" id="savePin">تغيير</button></div>
+    <h2>الإشعارات</h2>${notifCard(true)}
     <div style="margin:28px 0;text-align:center"><button class="linkbtn" id="out">تسجيل الخروج</button></div>`;
+  bindNotif();
   $('#beh').onclick = async e => { const c = e.target.closest('.chip'); if (!c) return;
     try {
       if (behind.has(c.dataset.c)){ const f = S.bundle.flags.find(f => f.kind==='behind' && f.teacher_id===me && f.class_id===c.dataset.c); if (f) await rpc('delete_flag', {p_token:S.token, p_id:f.id}); }
@@ -752,11 +804,70 @@ async function poll(){
 document.addEventListener('visibilitychange', () => { if (!document.hidden) poll(); });
 setInterval(poll, 90000);
 
+// ---------- الإشعارات ----------
+const VAPID = 'BCRbstPiS4u35SVsBPU2OjiuHS1WoF4k6gAK1GgfIVqd-UioEuZk1yho7YvRq8FVkTX62QyfuLe7f6C8nvQx5Ho';
+const PUSH_OK = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+const IS_IOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const STANDALONE = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const swReady = 'serviceWorker' in navigator ? navigator.serviceWorker.register('sw.js').then(() => navigator.serviceWorker.ready).catch(() => null) : Promise.resolve(null);
+if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', e => {
+  const m = e.data || {};
+  if (m.t === 'push') poll();
+  if (m.t === 'open' && S.token && S.bundle && !S.bundle.is_admin){ S.tab = 'req'; closeSheet(); refresh(true).then(route); }
+});
+function b64u(s){ const p = '='.repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g,'+').replace(/_/g,'/')); return Uint8Array.from(b, c => c.charCodeAt(0)); }
+async function subscribe(){
+  const reg = await swReady; if (!reg) throw new Error('sw');
+  const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: b64u(VAPID)});
+  await rpc('save_push_sub', {p_token: S.token, p_sub: sub.toJSON()}); store.set('ts_push', sub.endpoint);
+}
+async function enablePush(){
+  if (!PUSH_OK) return toast(IS_IOS ? 'أضف «بديل» إلى الشاشة الرئيسية أولًا، ثم افتحه منها' : 'هذا المتصفح لا يدعم الإشعارات');
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted'){ toast('لم يتم السماح بالإشعارات'); route(); return; }
+    await subscribe(); await rpc('test_push', {p_token: S.token}); toast('تم تفعيل الإشعارات ✓'); route();
+  } catch(err){ toast('تعذّر تفعيل الإشعارات، حاول مرة أخرى'); }
+}
+// لما التطبيق يفتح: نجدد الاشتراك بهدوء لو الإذن موجود
+async function syncPush(){ if (!PUSH_OK || !S.token || !S.bundle || S.bundle.is_admin || Notification.permission !== 'granted') return; try { await subscribe(); } catch(e){} }
+function dropPush(){ const ep = store.get('ts_push'); store.del('ts_push'); if (ep) rpc('delete_push_sub', {p_endpoint: ep}).catch(() => {});
+  swReady.then(r => r && r.pushManager.getSubscription()).then(s => s && s.unsubscribe()).catch(() => {}); }
+const BELL = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="flex:0 0 auto"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 0 0 4 0"/></svg>';
+function notifCard(full){
+  const st = PUSH_OK ? Notification.permission : (IS_IOS && !STANDALONE ? 'ios' : 'no');
+  if (st === 'granted') return full ? `<div class="muted small" style="display:flex;align-items:center;gap:10px">مفعّلة ✓ <button class="btn ghost sm" id="pushTest">إشعار تجربة</button></div>` : '';
+  if (st === 'denied') return full ? '<div class="muted small">الإشعارات محظورة. فعّلها من إعدادات المتصفح للموقع.</div>' : '';
+  if (st === 'no') return full ? '<div class="muted small">هذا المتصفح لا يدعم الإشعارات.</div>' : '';
+  if (st === 'ios') return `<div class="notif">${BELL}<div class="grow">لتصلك الإشعارات على الآيفون: من Safari اضغط زر المشاركة ← «إضافة إلى الشاشة الرئيسية»، ثم افتح «بديل» من الأيقونة.</div></div>`;
+  return `<div class="notif">${BELL}<div class="grow">فعّل الإشعارات ليصلك تنبيه فور وصول طلب أو قبوله.</div><button class="btn sm" id="pushOn">تفعيل</button></div>`;
+}
+function bindNotif(){ const b = $('#pushOn'); if (b) b.onclick = enablePush;
+  const t = $('#pushTest'); if (t) t.onclick = async () => { try { await subscribe(); await rpc('test_push', {p_token: S.token}); toast('أُرسل إشعار تجربة'); } catch(e){ toast('تعذّر الإرسال'); } }; }
+
+// ---------- سطر «يوجد تحديث» لما ننزّل نسخة جديدة ----------
+let VER0 = null;
+async function checkUpd(){
+  try {
+    const r = await fetch(location.pathname, {method: 'HEAD', cache: 'no-store'});
+    let v = r.headers.get('etag') || r.headers.get('last-modified');
+    if (!v){ const t = await (await fetch(location.pathname, {cache: 'no-store'})).text(); v = t.length + ':' + [...t].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 0); }
+    if (!VER0){ VER0 = v; return; }
+    if (v !== VER0 && !$('#upd')){
+      const d = document.createElement('div'); d.className = 'upd'; d.id = 'upd';
+      d.innerHTML = '<button>يوجد تحديث جديد · اضغط للتحديث</button>'; d.onclick = () => location.reload(); document.body.appendChild(d);
+    }
+  } catch(e){}
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkUpd(); });
+setInterval(checkUpd, 5 * 60000);
+
 // ---------- Boot ----------
 (async () => {
   if (S.token && S.bundle){ S.I = buildIndex(S.bundle); route(); refresh(true).then(() => { if (S.token && S.bundle && !$('#sheet').classList.contains('open')) route(); }); }
   else if (S.token){ await refresh(); route(); }
   else renderLogin();
+  checkUpd(); syncPush();
 })();
 </script>
 </body>
