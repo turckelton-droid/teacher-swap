@@ -343,7 +343,7 @@ function reqLines(r){ return slotLines(r.date, r.p, S.I.C[r.c] || r.c); }
 // o: {intro, rows, link (true | نص), outro, sign}
 function waMsg(to, o){
   const lk = o.link === true ? `أرسلت لك الطلب في «بديل»: ${APP_URL}` : o.link ? `${o.link} ${APP_URL}` : '';
-  return [`السلام عليكم ورحمة الله وبركاته،`, `أ.${first(tName(to))}، عساك بخير.`, o.intro, o.rows, lk, o.outro, o.sign === false ? '' : first(tName(S.bundle.me))].filter(Boolean).join('\n') + (o.sign === false ? '\n' : '');
+  return [`السلام عليكم ورحمة الله وبركاته،`, `أ.${first(tName(to))}، عساك بخير.`, o.intro, o.rows, lk, o.outro, o.sign === false ? '' : tLabel(S.bundle.me)].filter(Boolean).join('\n') + (o.sign === false ? '\n' : '');
 }
 const THANKS = 'شاكر لك تعاونك، وجزاك الله خيرًا.';
 function reqs(){ return (S.bundle && S.bundle.requests) || []; }
