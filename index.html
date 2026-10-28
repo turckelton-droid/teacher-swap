@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0f5c55">
-<title>مساعد المعلم</title>
+<title>بديل</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
-<meta name="apple-mobile-web-app-title" content="مساعد المعلم">
+<meta name="apple-mobile-web-app-title" content="بديل">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -299,7 +299,7 @@ function logout(){ S.token = null; S.bundle = null; S.I = null; store.del('ts_to
 let LOGIN = {list: [], pick: null, mode: 'list', pin: '', pin2: '', phone: ''};
 async function renderLogin(){
   document.body.style.paddingBottom = '16px';
-  $('#app').innerHTML = `<div class="wrap"><header class="top"><h1>مساعد المعلم</h1><div class="sub">تبديل الحصص وتأمينها بسهولة</div></header><div id="lg"></div></div>`;
+  $('#app').innerHTML = `<div class="wrap"><header class="top"><h1>بديل</h1><div class="sub">تبديل الحصص وتأمينها بسهولة</div></header><div id="lg"></div></div>`;
   if (!LOGIN.list.length){
     $('#lg').innerHTML = '<div class="empty">جاري التحميل…</div>';
     try { LOGIN.list = await rpc('list_teachers'); } catch(e){ $('#lg').innerHTML = '<div class="empty">لا يوجد اتصال بالإنترنت</div>'; return; }
@@ -432,14 +432,14 @@ function openSlot(p, mode, keep){
     const list = coverCandidates(I, me, date, p, l.c);
     body = list.length ? list.slice(0, 25).map(x => {
       const tags = (x.isBehind ? '<span class="tag w">متأخر مع الصف</span>' : '') + (x.teaches && !x.isBehind ? '<span class="tag o">يدرّس الصف</span>' : '');
-      const msg = msgs[x.t] = `السلام عليكم أ. ${first(tName(x.t))}، هل يمكنك تأمين حصتي مع الصف ${cls} يوم ${when}${pTime(p)?' ('+pTime(p)+')':''}؟` + (x.isBehind || x.teaches ? ' ويمكنك استثمارها في مادتك مع الصف.' : '') + ` أرسلت لك الطلب في مساعد المعلم: ${APP_URL} شكرًا لك — ${myName}`;
+      const msg = msgs[x.t] = `السلام عليكم أ. ${first(tName(x.t))}، هل يمكنك تأمين حصتي مع الصف ${cls} يوم ${when}${pTime(p)?' ('+pTime(p)+')':''}؟` + (x.isBehind || x.teaches ? ' ويمكنك استثمارها في مادتك مع الصف.' : '') + ` أرسلت لك الطلب في بديل: ${APP_URL} شكرًا لك — ${myName}`;
       return candCard(x.t, `متفرغ في هذا الوقت · لديه ${x.load} حصص في اليوم`, msg, tags, late ? null : {on: PICK.has(x.t)});
     }).join('') : '<div class="empty">لا يوجد معلم متفرغ في هذه الحصة</div>';
   } else {
     const list = swapCandidates(I, me, date, p, l.c, today()), seen = new Set();
     body = list.length ? list.slice(0, 25).map(x => {
       const w2 = `${dayName(x.d2)} ${fmtDate(x.date2)} الحصة ${x.p2}`;
-      const msg = `السلام عليكم أ. ${first(tName(x.t))}، هل يمكننا تبديل حصتين؟ تأخذ حصتي مع الصف ${cls} يوم ${when}، وآخذ حصتك مع الصف نفسه يوم ${w2}. أرسلت لك الطلب في مساعد المعلم: ${APP_URL} شكرًا لك — ${myName}`;
+      const msg = `السلام عليكم أ. ${first(tName(x.t))}، هل يمكننا تبديل حصتين؟ تأخذ حصتي مع الصف ${cls} يوم ${when}، وآخذ حصتك مع الصف نفسه يوم ${w2}. أرسلت لك الطلب في بديل: ${APP_URL} شكرًا لك — ${myName}`;
       if (!msgs[x.t]) msgs[x.t] = msg;
       const canSel = !late && !seen.has(x.t); seen.add(x.t);
       return candCard(x.t, `يأخذ حصتك، وتأخذ حصته <b>${esc(w2)}</b> (${esc(I.S[x.subj]||'')})`, msg, x.isBehind ? '<span class="tag w">متأخر مع الصف</span>' : '', canSel ? {on: PICK.has(x.t)} : null);
