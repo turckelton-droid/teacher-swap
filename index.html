@@ -3,98 +3,134 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0f5c55">
+<meta name="theme-color" content="#f5f4ef">
 <title>بديل</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-title" content="بديل">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+@font-face{font-family:"KO Sans";src:url(fonts/KOSans-Regular.woff2) format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"KO Sans";src:url(fonts/KOSans-Medium.woff2) format("woff2");font-weight:500;font-display:swap}
+@font-face{font-family:"KO Sans";src:url(fonts/KOSans-Bold.woff2) format("woff2");font-weight:700;font-display:swap}
 :root{
-  --bg:#f5f2ec; --card:#fffdf9; --ink:#1d2523; --muted:#6b7471; --line:#e4ded3;
-  --pri:#0f5c55; --pri-ink:#fff; --pri-soft:#dcebe8;
-  --warn:#b8611d; --warn-soft:#f8e7d8; --ok:#2f7d32; --ok-soft:#e1f0e1;
-  --wa:#1f9e57; --shadow:0 1px 2px rgba(30,25,15,.06),0 4px 14px rgba(30,25,15,.06);
-}
-@media (prefers-color-scheme:dark){
-  :root{--bg:#111615;--card:#1a211f;--ink:#e8eeec;--muted:#93a09c;--line:#2a3431;
-  --pri:#4fb3a6;--pri-ink:#0b1514;--pri-soft:#1d3532;--warn:#e7a066;--warn-soft:#3a2a1c;
-  --ok:#7cc47f;--ok-soft:#1e3320;--wa:#3fbf76;--shadow:none}
+  color-scheme:light;
+  --bg:#f5f4ef; --sock:#e6e4dc; --card:#fff; --ink:#161616; --muted:#5f5e57; --line:#e3e1d9; --field:#eae8e1;
+  --acc:#d8f35a; --pri:#161616; --pri-ink:#fff; --pri-soft:#eae8e1;
+  --dk:#161616; --dk2:#262624; --dk-line:#2b2b28; --dk-muted:#a9a8a0;
+  --warn:#8a3f06; --warn-soft:#fce1cc; --ok:#2f3a00; --ok-soft:#e4f5a8; --wa:#168a4a;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans Arabic",system-ui,sans-serif;font-size:16px}
-body{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:"KO Sans",system-ui,sans-serif;font-size:16px}
+body{padding-bottom:calc(92px + env(safe-area-inset-bottom))}
 button,input,select,textarea{font:inherit;color:inherit}
-.wrap{max-width:560px;margin:0 auto;padding:0 16px}
-header.top{position:sticky;top:0;z-index:5;background:var(--bg);padding:14px 0 8px}
-header.top h1{font-size:20px;margin:0;font-weight:700}
-header.top .sub{color:var(--muted);font-size:13px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
-.btn{border:0;border-radius:12px;padding:12px 16px;font-weight:600;cursor:pointer;background:var(--pri);color:var(--pri-ink)}
-.btn.ghost{background:transparent;color:var(--pri);border:1px solid var(--line)}
-.btn.wa{background:var(--wa);color:#fff}
-.btn.sm{padding:8px 12px;font-size:14px;border-radius:10px}
-.btn:disabled{opacity:.45}
+b,strong{font-weight:700}
+.wrap{max-width:560px;margin:0 auto;padding:0 18px}
+header.top{padding:18px 0 6px}
+.logo{display:inline-flex;align-items:center;height:52px;padding:0 20px;border-radius:26px;background:var(--dk)}
+.logo svg{width:76px;height:46px;display:block}
+header.top h1{font-size:30px;line-height:1.25;margin:18px 0 2px;font-weight:700}
+header.top .sub{color:var(--muted);font-size:14px}
+.card{background:var(--card);border:1px solid #ecebe5;border-radius:22px}
+.btn{border:2px solid var(--pri);border-radius:999px;padding:11px 18px;font-weight:500;cursor:pointer;background:var(--pri);color:var(--pri-ink);min-height:44px}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--ink)}
+.btn.wa{background:var(--wa);border-color:var(--wa);color:#fff}
+.btn.acc{background:var(--acc);border-color:var(--acc);color:var(--ink)}
+.btn.sm{padding:6px 14px;font-size:14px;min-height:38px}
+.btn:disabled{opacity:.4}
 .btn.block{width:100%}
-input.f,select.f,textarea.f{width:100%;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
-label.l{display:block;font-size:14px;color:var(--muted);margin:14px 0 6px}
+input.f,select.f,textarea.f{width:100%;min-height:52px;padding:12px 16px;border:2px solid transparent;border-radius:16px;background:var(--field);outline:none}
+input.f:focus{border-color:var(--ink)}
+input.f::placeholder{color:#7a796f}
+label.l{display:block;font-size:14px;color:var(--muted);margin:16px 0 8px}
 .muted{color:var(--muted)} .small{font-size:13px}
-.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 10px;scrollbar-width:none}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:4px 0 12px;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
-.chip{flex:0 0 auto;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:8px 14px;cursor:pointer;font-size:14px;white-space:nowrap}
-.chip.on{background:var(--pri);color:var(--pri-ink);border-color:var(--pri)}
-.chip .d{display:block;font-size:11px;opacity:.75}
+.chip{flex:0 0 auto;border:2px solid transparent;background:var(--field);border-radius:18px;padding:8px 16px;cursor:pointer;font-size:14px;font-weight:500;white-space:nowrap}
+.chip.on{background:var(--dk);color:#fff}
+.chip .d{display:block;font-size:11px;font-weight:400;opacity:.75}
 .wrapchips{flex-wrap:wrap;overflow:visible}
-.slot{display:flex;align-items:center;gap:12px;padding:12px 14px;margin:8px 0;cursor:pointer}
-.slot .n{width:38px;height:38px;border-radius:10px;background:var(--pri-soft);color:var(--pri);display:grid;place-items:center;font-weight:700;flex:0 0 auto}
+
+/* الكارت الأسود المقصوص */
+.notch{--nw:64px;--nh:30px;--nc:var(--bg);position:relative;background:var(--dk);color:#fff;border-radius:22px}
+.notch::before{content:"";position:absolute;left:0;top:0;width:var(--nw);height:var(--nh);background:var(--nc);border-bottom-right-radius:20px;pointer-events:none}
+.notch::after{content:"";position:absolute;left:0;top:0;width:calc(var(--nw) + 20px);height:calc(var(--nh) + 20px);pointer-events:none;
+  background:radial-gradient(circle at 100% 100%,transparent 19.5px,var(--nc) 20px) var(--nw) 0/20px 20px no-repeat,
+             radial-gradient(circle at 100% 100%,transparent 19.5px,var(--nc) 20px) 0 var(--nh)/20px 20px no-repeat}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0 6px}
+.stat{background:var(--sock);border-radius:26px;padding:5px;cursor:pointer;border:0;text-align:start;display:block;width:100%}
+.stat:nth-child(even){margin-top:18px;margin-bottom:-18px}
+.stat .notch{--nc:var(--sock);--nw:58px;height:132px;padding:16px 18px;display:flex;flex-direction:column;justify-content:space-between}
+.stat svg{width:24px;height:24px;color:var(--acc)}
+.stat .v{font-size:38px;font-weight:700;line-height:1}
+.stat .k{font-size:14px;color:#c9c8c0;margin-top:4px}
+.sechead{display:flex;justify-content:space-between;align-items:baseline;margin:34px 0 10px}
+.sechead h2{margin:0;font-size:22px}
+
+/* قائمة الحصص داخل اللوح الأسود */
+.panel{--nw:96px;--nh:40px;padding:calc(var(--nh) + 4px) 16px 8px;margin-bottom:8px}
+.slot{display:flex;align-items:center;gap:14px;padding:14px 4px;cursor:pointer;border-bottom:1px solid var(--dk-line)}
+.slot:last-child{border-bottom:0}
+.slot .n{width:40px;height:40px;border-radius:50%;border:2px solid var(--acc);color:var(--acc);display:grid;place-items:center;font-weight:700;flex:0 0 auto}
 .slot .b{flex:1;min-width:0}
-.slot .t{font-weight:600}
-.slot.free{opacity:.55;cursor:default;padding:6px 14px;box-shadow:none;background:transparent}
-.slot.free .n{background:transparent;border:1px dashed var(--line);color:var(--muted);width:30px;height:30px;font-size:14px}
-.tag{display:inline-block;font-size:12px;padding:2px 8px;border-radius:999px;background:var(--pri-soft);color:var(--pri);margin-inline-start:4px}
-.tag.w{background:var(--warn-soft);color:var(--warn)} .tag.o{background:var(--ok-soft);color:var(--ok)}
-nav.tabs{position:fixed;bottom:0;inset-inline:0;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:6px 0 calc(6px + env(safe-area-inset-bottom));z-index:10}
-nav.tabs button{background:none;border:0;padding:6px 10px;color:var(--muted);font-size:12px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;min-width:72px}
-nav.tabs button.on{color:var(--pri);font-weight:600}
+.slot .t{font-weight:500;font-size:17px}
+.slot .muted{color:var(--dk-muted)}
+.slot.mine .n{background:var(--acc);color:var(--dk)}
+.slot.free{cursor:default;padding:8px 4px;color:#8c8b84}
+.slot.free .n{border:1px dashed #4a4a46;color:#8c8b84;width:30px;height:30px;font-size:13px;margin-inline:5px}
+.slot>svg{color:var(--dk-muted)}
+.tag{display:inline-block;font-size:12px;font-weight:500;padding:3px 10px;border-radius:999px;background:var(--field);color:var(--ink);margin-inline-start:4px;vertical-align:middle}
+.tag.w{background:var(--warn-soft);color:var(--warn)} .tag.o{background:var(--ok-soft);color:var(--ok)} .tag.g{background:var(--field);color:var(--muted)}
+.panel .tag{background:var(--dk-line);color:#e6e4dc} .panel .tag.o{color:var(--acc)} .panel .tag.w{color:#ffb37a}
+
+nav.tabs{position:fixed;bottom:0;inset-inline:0;background:var(--bg);border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:center;padding:10px 8px calc(10px + env(safe-area-inset-bottom));z-index:10}
+nav.tabs button{background:none;border:0;padding:8px 10px;color:var(--muted);font-size:12px;font-weight:500;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;min-width:68px;border-radius:20px}
+nav.tabs button.on{background:var(--dk);color:#fff}
+nav.tabs button.on svg{color:var(--acc)}
 nav.tabs svg{width:22px;height:22px}
-.badge{background:var(--warn);color:#fff;border-radius:999px;font-size:11px;padding:0 6px;margin-inline-start:2px}
-.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:20;display:none}
-.sheet{position:fixed;inset-inline:0;bottom:0;z-index:21;background:var(--bg);border-radius:18px 18px 0 0;max-height:88vh;overflow:auto;padding:8px 0 calc(16px + env(safe-area-inset-bottom));transform:translateY(100%);transition:transform .22s ease}
+.badge{background:var(--dk);color:var(--acc);border-radius:999px;font-size:11px;font-weight:700;padding:0 6px;margin-inline-start:3px}
+nav.tabs button.on .badge{background:var(--acc);color:var(--dk)}
+.sheet-bg{position:fixed;inset:0;background:rgba(22,22,22,.45);z-index:20;display:none}
+.sheet{position:fixed;inset-inline:0;bottom:0;z-index:21;background:var(--bg);border-radius:28px 28px 0 0;max-height:88vh;overflow:auto;padding:8px 0 calc(18px + env(safe-area-inset-bottom));transform:translateY(100%);transition:transform .22s ease}
 .sheet.open{transform:none}
-.grab{width:40px;height:4px;border-radius:4px;background:var(--line);margin:4px auto 10px}
-.seg{display:flex;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:3px;margin:10px 0}
-.seg button{flex:1;border:0;background:none;padding:9px;border-radius:9px;font-weight:600;color:var(--muted);cursor:pointer}
-.seg button.on{background:var(--pri);color:var(--pri-ink)}
-.cand{padding:12px 14px;margin:8px 0}
+.sheet .wrap{max-width:560px}
+.grab{width:44px;height:5px;border-radius:5px;background:#cfccc2;margin:6px auto 14px}
+.seg{display:flex;background:var(--field);border-radius:999px;padding:4px;margin:12px 0}
+.seg button{flex:1;border:0;background:none;padding:10px;border-radius:999px;font-weight:500;color:var(--muted);cursor:pointer}
+.seg button.on{background:var(--dk);color:#fff}
+.cand{padding:14px 16px;margin:10px 0}
 .cand .row{display:flex;align-items:center;gap:10px}
-.cand .nm{font-weight:600;flex:1;min-width:0}
-.cand .why{font-size:13px;color:var(--muted);margin-top:4px}
-.cand .acts{display:flex;gap:8px;margin-top:10px}
+.cand .nm{font-weight:500;flex:1;min-width:0}
+.cand .why{font-size:13px;color:var(--muted);margin-top:4px;line-height:1.6}
+.cand .acts{display:flex;gap:8px;margin-top:12px}
 .cand .acts .btn{flex:1}
 .empty{text-align:center;padding:28px 10px;color:var(--muted)}
+.pinbox{--nw:120px;--nh:40px;padding:58px 20px 18px;text-align:center;margin-top:18px}
+.pinbox .who{font-size:22px;font-weight:700}
+.pinbox .muted{color:var(--dk-muted)}
 .pin{display:flex;gap:14px;justify-content:center;margin:18px 0 22px;direction:ltr}
-.pin span{width:16px;height:16px;border-radius:50%;border:2px solid var(--pri)}
-.pin span.on{background:var(--pri)}
-.pad{display:grid;grid-template-columns:repeat(3,76px);gap:16px 24px;justify-content:center;margin:0 auto;direction:ltr}
-.pad button{width:76px;height:76px;padding:0;font-size:30px;font-weight:500;border-radius:50%;border:0;background:var(--pri-soft);color:var(--ink);cursor:pointer;transition:background .1s}
-.pad button:active{background:var(--line)}
-.pad button[data-k="⌫"]{background:transparent;font-size:24px;color:var(--muted)}
-.list .it{padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;justify-content:space-between;align-items:center}
+.pin span{width:16px;height:16px;border-radius:50%;border:2px solid var(--acc)}
+.pin span.on{background:var(--acc)}
+.pad{display:grid;grid-template-columns:repeat(3,72px);gap:14px 22px;justify-content:center;margin:0 auto;direction:ltr}
+.pad button{width:72px;height:72px;padding:0;font-size:28px;font-weight:500;border-radius:50%;border:0;background:var(--dk2);color:#fff;cursor:pointer;transition:background .1s}
+.pad button:active{background:#3a3a37}
+.pad button[data-k="⌫"]{background:transparent;font-size:22px;color:var(--dk-muted)}
+.pinbox .err{color:#ffb37a}
+.pinbox .linkbtn{color:#fff}
+.list .it{padding:12px 16px;min-height:60px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px}
 .list .it:last-child{border-bottom:0}
-.toast{position:fixed;bottom:calc(90px + env(safe-area-inset-bottom));inset-inline:16px;max-width:520px;margin:0 auto;background:var(--ink);color:var(--bg);padding:12px 16px;border-radius:12px;z-index:40;opacity:0;transition:opacity .2s;pointer-events:none;text-align:center}
+.list .it .go{flex:0 0 auto;border:2px solid var(--ink);border-radius:999px;padding:4px 14px;font-size:13px;font-weight:500}
+.toast{position:fixed;bottom:calc(100px + env(safe-area-inset-bottom));inset-inline:16px;max-width:520px;margin:0 auto;background:var(--dk);color:#fff;padding:13px 18px;border-radius:18px;z-index:40;opacity:0;transition:opacity .2s;pointer-events:none;text-align:center}
 .toast.on{opacity:1}
-.err{color:var(--warn);font-size:14px;margin-top:8px;min-height:20px}
-h2{font-size:17px;margin:22px 0 8px}
-.sec{padding:14px}
+.err{color:#b4400a;font-size:14px;margin-top:8px;min-height:20px}
+h2{font-size:19px;font-weight:700;margin:26px 0 10px}
+.sec{padding:16px}
 .hide{display:none!important}
-.selbtn.on{background:var(--pri);color:var(--pri-ink);border-color:var(--pri)}
-.sendbar{position:sticky;bottom:0;background:var(--bg);padding:10px 0 4px}
-.card.mine{border-color:var(--pri)}
-.tag.g{background:var(--line);color:var(--muted)}
-.linkbtn{background:none;border:0;color:var(--pri);cursor:pointer;padding:8px;font-size:14px}
+.selbtn.on{background:var(--dk);color:var(--acc);border-color:var(--dk)}
+.sendbar{position:sticky;bottom:0;background:var(--bg);padding:12px 0 4px}
+.card.mine{border:2px solid var(--ink)}
+.linkbtn{background:none;border:0;color:var(--ink);cursor:pointer;padding:10px;font-size:14px;font-weight:500;text-decoration:underline;text-underline-offset:4px}
 </style>
 </head>
 <body>
@@ -240,6 +276,8 @@ const ERR = {pin_format:'يجب أن يتكون الرمز من 4 أرقام', a
   not_target:'هذا الطلب غير موجّه إليك', not_pending:'لم يعد الطلب متاحًا؛ ربما قبله زميل آخر أو أُلغي', not_free:'لست متفرغًا في هذه الحصة',
   not_active:'الطلب لم يعد نشطًا', not_allowed:'لا يمكنك إلغاء هذا الطلب'};
 const KIND = {cover:'تأمين', swap:'تبديل'};
+const LOGO = '<div class="logo"><svg viewBox="-20 -720 1630 990" role="img" aria-label="بديل"><path fill="#fff" d="M644 -261C577 -261 542 -263 536 -336C536 -402 536 -473 534 -537V-700H499L476 -651L504 -113C491 -90 426 -11 271 -10C56 -10 66 -196 128 -332H97L89 -323C-27 -72 6 250 260 250C524 250 535 -4 535 -79V-85C556 -34 586 -3 629 0H644Z M798 -31 839 -261C834 -318 828 -393 808 -449H792L754 -410L818 -276C784 -267 709 -261 642 -261V0C717 0 777 -17 798 -31Z M1126 -543C1136 -459 1152 -351 1180 -253C1133 -241 983 -209 886 -259L873 -246C882 -113 903 -50 917 -9C1039 71 1231 -8 1231 -9L1221 -141C1261 -56 1317 2 1395 0V-261C1218 -261 1194 -391 1156 -572H1142Z M1547 -31 1588 -261C1583 -318 1577 -393 1557 -449H1541L1503 -410L1567 -276C1533 -267 1458 -261 1391 -261V0C1466 0 1526 -17 1547 -31Z"/><path fill="#d8f35a" d="M663 31 593 101 682 185 743 123 809 185 879 113 790 31 729 91Z M1488 38 1417 109 1507 193 1578 121Z"/></svg></div>';
+const hdr = (title, sub) => `<header class="top">${LOGO}<h1>${title}</h1><div class="sub" id="sub">${sub||''}</div></header>`;
 const APP_URL = location.origin + location.pathname;
 
 const $ = s => document.querySelector(s);
@@ -322,7 +360,7 @@ function logout(){ S.token = null; S.bundle = null; S.I = null; store.del('ts_to
 let LOGIN = {list: [], pick: null, mode: 'list', pin: '', pin2: '', phone: ''};
 async function renderLogin(){
   document.body.style.paddingBottom = '16px';
-  $('#app').innerHTML = `<div class="wrap"><header class="top"><h1>بديل</h1><div class="sub">تبديل الحصص وتأمينها بسهولة</div></header><div id="lg"></div></div>`;
+  $('#app').innerHTML = `<div class="wrap">${hdr('سجّل دخولك', 'اختر اسمك ثم أدخل رمزك السري')}<div id="lg"></div></div>`;
   if (!LOGIN.list.length){
     $('#lg').innerHTML = '<div class="empty">جاري التحميل…</div>';
     try { LOGIN.list = await rpc('list_teachers'); } catch(e){ $('#lg').innerHTML = '<div class="empty">لا يوجد اتصال بالإنترنت</div>'; return; }
@@ -333,11 +371,11 @@ function drawLogin(){
   const L = LOGIN, el = $('#lg');
   if (L.mode === 'list'){
     if (!L.list.length){ el.innerHTML = `<div class="empty">لم يُرفع الجدول بعد. يُرجى من المشرف رفع ملف الجدول أولًا.</div><div style="text-align:center"><button class="linkbtn" id="adm">دخول المشرف</button></div>`; $('#adm').onclick = () => { L.mode='admin'; L.pin=''; drawLogin(); }; return; }
-    el.innerHTML = `<label class="l">اختر اسمك</label><input class="f" id="q" placeholder="ابحث بالاسم…" autocomplete="off">
+    el.innerHTML = `<label class="l" for="q">ابحث باسمك</label><input class="f" id="q" placeholder="ابحث بالاسم…" autocomplete="off">
       <div class="card list" id="names" style="margin-top:10px;max-height:60vh;overflow:auto"></div>
       <div style="text-align:center;margin-top:10px"><button class="linkbtn" id="adm">دخول المشرف</button></div>`;
     const draw = q => { const rows = L.list.filter(t => !q || norm(t.name).includes(norm(q))).slice(0, 80);
-      $('#names').innerHTML = rows.map(t => `<div class="it" data-id="${esc(t.id)}"><span>${esc(t.name)}</span>${t.has_pin ? '' : '<span class="tag">جديد</span>'}</div>`).join('') || '<div class="empty">لا يوجد اسم مطابق</div>'; };
+      $('#names').innerHTML = rows.map(t => `<div class="it" data-id="${esc(t.id)}"><span>${esc(t.name)}${t.has_pin ? '' : ' <span class="tag">جديد</span>'}</span><span class="go">اختيار</span></div>`).join('') || '<div class="empty">لا يوجد اسم مطابق</div>'; };
     draw(''); $('#q').oninput = e => draw(e.target.value.trim());
     $('#names').onclick = e => { const it = e.target.closest('.it'); if (!it) return; L.pick = L.list.find(t => t.id === it.dataset.id); L.mode = L.pick.has_pin ? 'pin' : 'setup'; L.pin=''; L.pin2=''; drawLogin(); };
     $('#adm').onclick = () => { L.mode='admin'; L.pin=''; drawLogin(); };
@@ -345,7 +383,7 @@ function drawLogin(){
   }
   if (L.mode === 'pin' || L.mode === 'admin'){
     const isAdm = L.mode === 'admin', len = isAdm ? 6 : 4;
-    el.innerHTML = `<div class="card sec" style="text-align:center"><div style="font-weight:600">${isAdm ? 'رمز المشرف' : esc(L.pick.name)}</div>
+    el.innerHTML = `<div class="notch pinbox"><div class="who">${isAdm ? 'رمز المشرف' : esc(L.pick.name)}</div>
       <div class="muted small">${isAdm ? '6 أرقام' : 'أدخل رمزك السري'}</div>
       <div class="pin">${Array.from({length: len}, (_, i) => `<span class="${i < L.pin.length ? 'on' : ''}"></span>`).join('')}</div>
       <div class="pad">${[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map(k => k === '' ? '<span></span>' : `<button data-k="${k}">${k}</button>`).join('')}</div>
@@ -366,7 +404,7 @@ function drawLogin(){
     return;
   }
   if (L.mode === 'setup'){
-    el.innerHTML = `<div class="card sec"><div style="font-weight:600">${esc(L.pick.name)}</div><div class="muted small">الدخول الأول: أنشئ رمزًا سريًا من 4 أرقام.</div>
+    el.innerHTML = `<div class="card sec"><div style="font-weight:700;font-size:20px">${esc(L.pick.name)}</div><div class="muted small">الدخول الأول: أنشئ رمزًا سريًا من 4 أرقام.</div>
       <label class="l">الرمز السري (4 أرقام)</label><input class="f" id="p1" inputmode="numeric" maxlength="4" type="password" autocomplete="new-password">
       <label class="l">أكّد الرمز</label><input class="f" id="p2" inputmode="numeric" maxlength="4" type="password" autocomplete="new-password">
       <div class="err" id="er"></div><button class="btn block" id="go">تفعيل</button>
@@ -392,7 +430,7 @@ function route(){
   if (!S.date || S.date < today() || !dayOf(S.date)) S.date = schoolDates(today(), 1)[0];
   const opp = opportunities(S.I, S.bundle, S.bundle.me, today()).length, inc = incoming().length;
   const me = S.I.T[S.bundle.me];
-  $('#app').innerHTML = `<div class="wrap"><header class="top"><h1>${esc(me ? first(me.name) : '')}</h1><div class="sub" id="sub"></div></header><main id="main"></main></div>
+  $('#app').innerHTML = `<div class="wrap">${hdr(me ? 'أهلًا ' + esc(first(me.name)) : 'أهلًا')}<main id="main"></main></div>
   <nav class="tabs">
     <button data-t="day" class="${S.tab==='day'?'on':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>حصصي</button>
     <button data-t="req" class="${S.tab==='req'?'on':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H8l-4 4z"/></svg><span>طلباتي${inc ? `<span class="badge">${inc}</span>` : ''}</span></button>
@@ -405,22 +443,35 @@ function route(){
 
 function renderDay(){
   const I = S.I, me = S.bundle.me, dates = schoolDates(today(), 10), d = dayOf(S.date);
-  $('#sub').textContent = 'اختر اليوم، ثم اضغط على الحصة المطلوب تبديلها أو تأمينها';
+  $('#sub').textContent = `${dayName(d)} ${fmtDate(S.date)}`;
+  const td = today(), R = reqs();
+  const nAcc = R.filter(r => r.status === 'accepted' && (r.from === me || r.by === me) && r.date >= td).length;
+  const nCov = R.filter(r => r.status === 'accepted' && r.by === me && r.date >= td).length;
+  const ic = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+  const stat = (v, k, icon, go) => { const tg = go ? 'button' : 'div'; return `<${tg} class="stat"${go ? ` data-go="${go}"` : ''}><div class="notch">${ic(icon)}<div><div class="v">${v}</div><div class="k">${k}</div></div></div></${tg}>`; };
   const mine = (I.byTeacher[me]||[]).filter(x => x.d === d);
   const myAppts = new Set(S.bundle.flags.filter(f => f.kind==='appointment' && f.teacher_id===me && f.on_date===S.date).flatMap(f => f.periods||[]));
   const per = S.bundle.periods.length ? S.bundle.periods.map(p => p.period) : [1,2,3,4,5,6,7];
-  $('#main').innerHTML = `<div class="chips">${dates.map(x => `<button class="chip ${x===S.date?'on':''}" data-d="${x}">${esc(dayName(dayOf(x)))}<span class="d">${x===today()?'اليوم':fmtDate(x)}</span></button>`).join('')}</div>
-    <div id="slots">${per.map(p => { const l = mine.find(x => x.p === p);
+  $('#main').innerHTML = `<div class="stats">
+      ${stat(mine.length, S.date === td ? 'حصص اليوم' : 'حصص ' + esc(dayName(d)), '<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M8 3v4M16 3v4M4 10h16"/>')}
+      ${stat(incoming().length, 'طلبات واردة', '<path d="M4 13l2.5-7h11L20 13v6H4z"/><path d="M4 13h5l1 2h4l1-2h5"/>', 'req')}
+      ${stat(nAcc, 'متفق عليها', '<circle cx="12" cy="12" r="8"/><path d="m8.5 12 2.5 2.5 4.5-5"/>', 'req')}
+      ${stat(nCov, 'حصص تأمين', '<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/>', 'req')}
+    </div>
+    <div class="sechead"><h2>حصص يوم ${esc(dayName(d))}</h2></div>
+    <div class="chips">${dates.map(x => `<button class="chip ${x===S.date?'on':''}" data-d="${x}">${esc(dayName(dayOf(x)))}<span class="d">${x===today()?'اليوم':fmtDate(x)}</span></button>`).join('')}</div>
+    <div id="slots" class="notch panel">${per.map(p => { const l = mine.find(x => x.p === p);
       if (!l){
         const cv = reqs().find(r => r.status === 'accepted' && r.by === me && r.date === S.date && r.p === p);
-        if (cv) return `<div class="card slot mine" data-r="${cv.id}"><div class="n">${p}</div><div class="b"><div class="t">${esc(I.C[cv.c]||cv.c)} <span class="tag o">تؤمّنها</span></div><div class="muted small">عن أ. ${esc(tLabel(cv.from))} · ${esc(pTime(p))}</div></div></div>`;
+        if (cv) return `<div class="slot mine" data-r="${cv.id}"><div class="n">${p}</div><div class="b"><div class="t">${esc(I.C[cv.c]||cv.c)} <span class="tag o">تؤمّنها</span></div><div class="muted small">عن أ. ${esc(tLabel(cv.from))} · ${esc(pTime(p))}</div></div></div>`;
         return `<div class="slot free"><div class="n">${p}</div><div class="b small">فراغ${pTime(p)?' · '+esc(pTime(p)):''}</div></div>`;
       }
       const rq = I.slotReq[me+'|'+S.date+'|'+p];
       const rtag = !rq ? '' : rq.status === 'accepted' ? `<span class="tag o">${KIND[rq.kind]}: أ. ${esc(tLabel(rq.by))}</span>` : '<span class="tag w">طلب بانتظار الرد</span>';
-      return `<div class="card slot" data-p="${p}"><div class="n">${p}</div><div class="b"><div class="t">${esc(I.C[l.c]||l.c)} ${myAppts.has(p)?'<span class="tag w">لديك موعد</span>':''}${rtag}</div>
+      return `<div class="slot" data-p="${p}"><div class="n">${p}</div><div class="b"><div class="t">${esc(I.C[l.c]||l.c)} ${myAppts.has(p)?'<span class="tag w">لديك موعد</span>':''}${rtag}</div>
         <div class="muted small">${esc(I.S[l.s]||'')} · ${esc(pTime(p))}</div></div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted)"><path d="M15 6l-6 6 6 6"/></svg></div>`; }).join('')}
-    ${mine.length ? '' : '<div class="empty">لا توجد حصص في هذا اليوم</div>'}</div>`;
+    ${mine.length ? '' : '<div class="empty" style="color:var(--dk-muted)">لا توجد حصص في هذا اليوم</div>'}</div>`;
+  $('#main').querySelector('.stats').onclick = e => { const b = e.target.closest('[data-go]'); if (b){ S.tab = b.dataset.go; route(); } };
   $('#main').querySelector('.chips').onclick = e => { const c = e.target.closest('.chip'); if (!c) return; S.date = c.dataset.d; renderDay(); };
   $('#slots').onclick = e => { const r = e.target.closest('.slot[data-r]'); if (r){ S.tab = 'req'; route(); return; } const s = e.target.closest('.slot[data-p]'); if (s) openSlot(+s.dataset.p); };
   const on = $('#main').querySelector('.chip.on'); on && on.scrollIntoView({inline:'center', block:'nearest'});
@@ -646,7 +697,7 @@ let PARSED = null;
 function renderAdmin(){
   document.body.style.paddingBottom = '16px';
   const B = S.bundle;
-  $('#app').innerHTML = `<div class="wrap"><header class="top"><h1>لوحة المشرف</h1><div class="sub">${B.teachers.length} معلم · ${B.classes.length} صف · ${B.schedule.length} حصة</div></header>
+  $('#app').innerHTML = `<div class="wrap">${hdr('لوحة المشرف', `${B.teachers.length} معلم، ${B.classes.length} صف، ${B.schedule.length} حصة`)}
     <div class="card sec"><div style="font-weight:600">رفع الجدول (XML)</div><div class="muted small">ملف التصدير من برنامج الجداول. تبقى الرموز السرية وأرقام المعلمين كما هي.</div>
       <input type="file" id="xf" accept=".xml,text/xml" class="f" style="margin-top:10px"><div id="pv" class="small" style="margin-top:10px"></div>
       <button class="btn block hide" id="imp" style="margin-top:10px">اعتماد الجدول</button></div>
