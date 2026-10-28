@@ -266,7 +266,10 @@ function waPhone(raw){
   else if (n.length === 11 && n.startsWith('01')) n = '20' + n.slice(1);
   return n;
 }
-function waLink(tid, text){ const ph = waPhone(S.I.T[tid] && S.I.T[tid].phone); return ph ? 'https://wa.me/' + ph + '?text=' + encodeURIComponent(text) : null; }
+const IS_MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+function waLink(tid, text){ const ph = waPhone(S.I.T[tid] && S.I.T[tid].phone); if (!ph) return null;
+  const q = 'phone=' + ph + '&text=' + encodeURIComponent(text);
+  return IS_MOBILE ? 'whatsapp://send?' + q : 'https://web.whatsapp.com/send?' + q; }
 function dayName(d){ return (S.I.D[d] && !/\uFFFD/.test(S.I.D[d])) ? S.I.D[d] : DAY_FALLBACK[d]; }
 function fmtDate(s){ const d = parseIso(s); return d.getDate() + '/' + (d.getMonth()+1); }
 function pTime(p){ const x = S.I.P[p]; return x ? (x.start || x.starttime || '') : ''; }
