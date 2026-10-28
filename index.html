@@ -278,6 +278,16 @@ function pTime(p){ const x = S.I.P[p]; return x ? (x.start || x.starttime || '')
 function tName(t){ return (S.I.T[t] && (S.I.T[t].name)) || '—'; }
 function first(name){ return String(name||'').split(' ').slice(0,2).join(' '); }
 function started(date, p){ const t = String(pTime(p)||'7:00').split(':').map(Number), d = parseIso(date); d.setHours(t[0]||0, t[1]||0, 0, 0); return d <= new Date(); }
+const ORD = ['','الأولى','الثانية','الثالثة','الرابعة','الخامسة','السادسة','السابعة','الثامنة','التاسعة'];
+function pLabel(p){ const t = pTime(p), h = +String(t).split(':')[0]; return (ORD[p] || p) + (t ? ` (${t} ${h && h < 12 ? 'صباحًا' : 'ظهرًا'})` : ''); }
+function slotLines(date, p, cls){ return `📅 اليوم: ${dayName(dayOf(date))} ${fmtDate(date)}\n⏰ الحصة: ${pLabel(p)}\n🏫 الصف: ${cls}`; }
+function reqLines(r){ return slotLines(r.date, r.p, S.I.C[r.c] || r.c); }
+// o: {intro, rows, link (true | نص), outro, sign}
+function waMsg(to, o){
+  const lk = o.link === true ? `أرسلت لك الطلب في «بديل»: ${APP_URL}` : o.link ? `${o.link} ${APP_URL}` : '';
+  return [`السلام عليكم ورحمة الله وبركاته،`, `أ.${first(tName(to))}، عساك بخير.`, o.intro, o.rows, lk, o.outro, o.sign === false ? '' : first(tName(S.bundle.me))].filter(Boolean).join('\n') + (o.sign === false ? '\n' : '');
+}
+const THANKS = 'شاكر لك تعاونك، وجزاك الله خيرًا.';
 function reqs(){ return (S.bundle && S.bundle.requests) || []; }
 function incoming(){ const me = S.bundle.me; return reqs().filter(r => r.status === 'pending' && !started(r.date, r.p) && r.to.some(x => x.t === me && x.r === 'pending')); }
 function reqWhen(r){ return `${dayName(dayOf(r.date))} ${fmtDate(r.date)} الحصة ${r.p}`; }
@@ -434,14 +444,14 @@ function openSlot(p, mode, keep){
     const list = coverCandidates(I, me, date, p, l.c);
     body = list.length ? list.slice(0, 25).map(x => {
       const tags = (x.isBehind ? '<span class="tag w">متأخر مع الصف</span>' : '') + (x.teaches && !x.isBehind ? '<span class="tag o">يدرّس الصف</span>' : '');
-      const msg = msgs[x.t] = `السلام عليكم أ. ${first(tName(x.t))}، هل يمكنك تأمين حصتي مع الصف ${cls} يوم ${when}${pTime(p)?' ('+pTime(p)+')':''}؟` + (x.isBehind || x.teaches ? ' ويمكنك استثمارها في مادتك مع الصف.' : '') + ` أرسلت لك الطلب في بديل: ${APP_URL} شكرًا لك — ${myName}`;
+      const msg = msgs[x.t] = waMsg(x.t, {intro: 'أرجو منك التكرم بتأمين الحصة التالية:', rows: slotLines(date, p, cls), link: true, outro: THANKS});
       return candCard(x.t, `متفرغ في هذا الوقت · لديه ${x.load} حصص في اليوم`, msg, tags, late ? null : {on: PICK.has(x.t)});
     }).join('') : '<div class="empty">لا يوجد معلم متفرغ في هذه الحصة</div>';
   } else {
     const list = swapCandidates(I, me, date, p, l.c, today()), seen = new Set();
     body = list.length ? list.slice(0, 25).map(x => {
       const w2 = `${dayName(x.d2)} ${fmtDate(x.date2)} الحصة ${x.p2}`;
-      const msg = `السلام عليكم أ. ${first(tName(x.t))}، هل يمكننا تبديل حصتين؟ تأخذ حصتي مع الصف ${cls} يوم ${when}، وآخذ حصتك مع الصف نفسه يوم ${w2}. أرسلت لك الطلب في بديل: ${APP_URL} شكرًا لك — ${myName}`;
+      const msg = waMsg(x.t, {intro: 'أرجو منك التكرم بتبديل الحصة التالية معي:', rows: slotLines(date, p, cls) + `\n🔁 وآخذ حصتك مع الصف نفسه: ${dayName(x.d2)} ${fmtDate(x.date2)}، الحصة ${pLabel(x.p2)}`, link: true, outro: THANKS});
       if (!msgs[x.t]) msgs[x.t] = msg;
       const canSel = !late && !seen.has(x.t); seen.add(x.t);
       return candCard(x.t, `يأخذ حصتك، وتأخذ حصته <b>${esc(w2)}</b> (${esc(I.S[x.subj]||'')})`, msg, x.isBehind ? '<span class="tag w">متأخر مع الصف</span>' : '', canSel ? {on: PICK.has(x.t)} : null);
@@ -483,10 +493,10 @@ function openReqStatus(r, head){
   const me = S.bundle.me, cls = S.I.C[r.c] || r.c;
   let html = head;
   if (r.status === 'accepted'){
-    const msg = `السلام عليكم أ. ${first(tName(r.by))}، اعتذر، ألغيت طلب ${KIND[r.kind]} حصتي مع الصف ${cls} يوم ${reqWhen(r)}. شكرًا لك — ${first(tName(me))}`;
+    const msg = waMsg(r.by, {intro: `أعتذر منك، فقد ألغيت طلب ${KIND[r.kind]} الحصة التالية:`, rows: reqLines(r), outro: THANKS});
     html += `<div class="card cand" style="margin-top:12px"><div class="row"><div class="nm">${esc(tName(r.by))}</div><span class="tag o">قَبِل ${KIND[r.kind]}</span></div>
       <div class="why">${r.kind === 'swap' ? 'تتفقان على موعد ردّ الحصة.' : 'سيؤمّن الحصة مكانك.'}</div>
-      <div class="acts">${waBtn(r.by, `السلام عليكم أ. ${first(tName(r.by))}، شكرًا لقبولك ${KIND[r.kind]} حصتي مع الصف ${cls} يوم ${reqWhen(r)}. — ${first(tName(me))}`)}</div></div>
+      <div class="acts">${waBtn(r.by, waMsg(r.by, {intro: `شكرًا لقبولك ${KIND[r.kind]} الحصة التالية:`, rows: reqLines(r), outro: 'جزاك الله خيرًا.'}))}</div></div>
       <button class="btn ghost block" id="cx" style="margin-top:10px">إلغاء</button>`;
     openSheet(html);
     $('#cx').onclick = () => cancelReq(r, r.by, msg);
@@ -522,12 +532,12 @@ function renderReq(){
   let h = '<h2>واردة إليك</h2>';
   h += inc.length ? inc.map(r => `<div class="card cand"><div class="row"><div class="nm">${esc(tName(r.from))}</div><span class="tag">${KIND[r.kind]}</span></div>
       <div class="why">${line(r)}${r.kind === 'swap' ? '<br>تبديل: تتفقان لاحقًا على موعد ردّ الحصة.' : ''}</div>
-      <div class="acts"><button class="btn sm" data-acc="${r.id}">قبول</button><button class="btn ghost sm" data-dec="${r.id}">اعتذار</button>${waBtn(r.from, `السلام عليكم أ. ${first(tName(r.from))}، بخصوص طلب ${KIND[r.kind]} حصتك يوم ${reqWhen(r)}: `)}</div></div>`).join('')
+      <div class="acts"><button class="btn sm" data-acc="${r.id}">قبول</button><button class="btn ghost sm" data-dec="${r.id}">اعتذار</button>${waBtn(r.from, waMsg(r.from, {intro: `بخصوص طلب ${KIND[r.kind]} الحصة التالية:`, rows: reqLines(r), sign: false}))}</div></div>`).join('')
     : '<div class="muted small" style="padding:8px 0">لا توجد طلبات واردة</div>';
   h += '<h2>متفق عليها</h2>';
   h += acc.length ? acc.map(r => { const mineReq = r.from === me, other = mineReq ? r.by : r.from;
       return `<div class="card cand ${mineReq ? '' : 'mine'}"><div class="row"><div class="nm">${mineReq ? `أ. ${esc(first(tName(r.by)))} يؤمّن حصتك` : `تؤمّن حصة أ. ${esc(first(tName(r.from)))}`}</div><span class="tag o">${KIND[r.kind]}</span></div>
-        <div class="why">${line(r)}</div><div class="acts">${waBtn(other, `السلام عليكم أ. ${first(tName(other))}، بخصوص ${KIND[r.kind]} حصة الصف ${I.C[r.c]||r.c} يوم ${reqWhen(r)}: `)}<button class="btn ghost sm" data-cx="${r.id}">إلغاء</button></div></div>`; }).join('')
+        <div class="why">${line(r)}</div><div class="acts">${waBtn(other, waMsg(other, {intro: `بخصوص ${KIND[r.kind]} الحصة التالية:`, rows: reqLines(r), sign: false}))}<button class="btn ghost sm" data-cx="${r.id}">إلغاء</button></div></div>`; }).join('')
     : '<div class="muted small" style="padding:8px 0">لا توجد حصص متفق عليها</div>';
   if (sent.length){
     h += '<h2>بانتظار الرد</h2>' + sent.map(r => { const dec = r.to.filter(x => x.r === 'declined').length;
@@ -548,7 +558,7 @@ function renderReq(){
       (a || d).disabled = true;
       try {
         await rpc('respond_request', {p_token: S.token, p_id: id, p_accept: !!a}); await refresh(true); route();
-        if (a){ const wa = waBtn(r.from, `السلام عليكم أ. ${first(tName(r.from))}، قبلت ${KIND[r.kind]} حصتك مع الصف ${I.C[r.c]||r.c} يوم ${reqWhen(r)}. — ${myName}`, 'أبلغه عبر الواتساب');
+        if (a){ const wa = waBtn(r.from, waMsg(r.from, {intro: `يسعدني إبلاغك بأنني قبلت ${KIND[r.kind]} الحصة التالية:`, rows: reqLines(r), outro: 'بالتوفيق إن شاء الله.'}), 'أبلغه عبر الواتساب');
           openSheet(`<div class="empty" style="padding:16px 0 8px"><b>تم القبول ✓</b><br>أُضيفت الحصة إلى «حصصي».</div>${wa.replace('btn wa sm','btn wa block')}<button class="btn ghost block" id="done" style="margin-top:10px">تم</button>`); $('#done').onclick = closeSheet; }
         else toast('تم');
       } catch(err){ toast(err.message); await refresh(true); route(); }
@@ -556,7 +566,7 @@ function renderReq(){
     }
     if (c){ const r = R.find(x => x.id === +c.dataset.cx); if (!r) return;
       const other = r.status === 'accepted' ? (r.from === me ? r.by : r.from) : null;
-      cancelReq(r, other, other && `السلام عليكم أ. ${first(tName(other))}، اعتذر، ألغيت ${KIND[r.kind]} حصة الصف ${I.C[r.c]||r.c} يوم ${reqWhen(r)}. — ${myName}`); }
+      cancelReq(r, other, other && waMsg(other, {intro: `أعتذر منك، فقد ألغيت ${KIND[r.kind]} الحصة التالية:`, rows: reqLines(r), outro: THANKS})); }
   };
 }
 async function copy(text){ try { await navigator.clipboard.writeText(text); toast('تم النسخ'); } catch(e){ prompt('انسخ الرسالة:', text); } }
@@ -567,7 +577,7 @@ function renderOpp(){
   const myName = first(tName(me));
   $('#main').innerHTML = list.length ? list.map(x => {
     const cls = I.C[x.c] || x.c, when = `${dayName(x.d)} ${fmtDate(x.date)} الحصة ${x.p}`;
-    const msg = `السلام عليكم أ. ${first(tName(x.owner))}، علمت أن لديك موعدًا يوم ${when}، ويمكنني تأمين حصتك مع الصف ${cls}. — ${myName}`;
+    const msg = waMsg(x.owner, {intro: 'علمت أن لديك موعدًا، ويسعدني تأمين حصتك التالية:', rows: slotLines(x.date, x.p, cls), link: 'إن رغبت، أرسل لي الطلب في «بديل»:', outro: 'بالتوفيق إن شاء الله.'});
     const tags = x.meBehind ? '<span class="tag w">فرصة لمنهجك</span>' : x.teaches ? '<span class="tag o">تدرّس هذا الصف</span>' : '';
     return candCard(x.owner, `${esc(cls)} · ${esc(I.S[x.s]||'')} · <b>${esc(when)}</b>${x.flag.note ? ' · ' + esc(x.flag.note) : ''}`, msg, tags);
   }).join('') : '<div class="empty">لا توجد طلبات حاليًا</div>';
