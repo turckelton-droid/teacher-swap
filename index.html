@@ -357,10 +357,9 @@ function drawLogin(){
     return;
   }
   if (L.mode === 'setup'){
-    el.innerHTML = `<div class="card sec"><div style="font-weight:600">${esc(L.pick.name)}</div><div class="muted small">الدخول الأول: أنشئ رمزًا سريًا، وأضف رقم الواتساب ليتواصل معك زملاؤك.</div>
+    el.innerHTML = `<div class="card sec"><div style="font-weight:600">${esc(L.pick.name)}</div><div class="muted small">الدخول الأول: أنشئ رمزًا سريًا من 4 أرقام.</div>
       <label class="l">الرمز السري (4 أرقام)</label><input class="f" id="p1" inputmode="numeric" maxlength="4" type="password" autocomplete="new-password">
       <label class="l">أكّد الرمز</label><input class="f" id="p2" inputmode="numeric" maxlength="4" type="password" autocomplete="new-password">
-      <label class="l">رقم الواتساب</label><input class="f" id="ph" inputmode="tel" placeholder="مثال: 9xxxxxxx" dir="ltr">
       <div class="err" id="er"></div><button class="btn block" id="go">تفعيل</button>
       <div style="text-align:center"><button class="linkbtn" id="back">رجوع</button></div></div>`;
     $('#back').onclick = () => { L.mode='list'; drawLogin(); };
@@ -368,7 +367,7 @@ function drawLogin(){
       const a = $('#p1').value, b = $('#p2').value;
       if (!/^\d{4}$/.test(a)) return $('#er').textContent = ERR.pin_format;
       if (a !== b) return $('#er').textContent = 'الرمزان غير متطابقين';
-      try { const tok = await rpc('setup_account', {p_teacher: L.pick.id, p_pin: a, p_phone: $('#ph').value}); await enter(tok); }
+      try { const tok = await rpc('setup_account', {p_teacher: L.pick.id, p_pin: a, p_phone: null}); await enter(tok); }
       catch(err){ $('#er').textContent = err.message; }
     };
   }
