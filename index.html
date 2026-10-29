@@ -113,6 +113,16 @@ nav.tabs button.on .badge{background:var(--acc);color:var(--dk)}
 .cand .acts{display:flex;gap:8px;margin-top:12px}
 .cand .acts .btn{flex:1}
 .empty{text-align:center;padding:28px 10px;color:var(--muted)}
+.cand.done{opacity:.72}
+.ck{width:28px;height:28px;border-radius:50%;background:var(--acc);color:var(--dk);display:grid;place-items:center;flex:0 0 auto}
+.ck svg{width:16px;height:16px}
+.mstat{padding:12px 16px;margin:10px 0;font-size:14px;line-height:1.8}
+.mstat b{font-size:16px}
+.st-row{padding:12px 16px;border-bottom:1px solid var(--line)}
+.st-row:last-child{border-bottom:0}
+.st-row .nm{font-weight:500}
+.st-row .nums{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.st-row .nums .tag{margin:0}
 .pinbox{--nw:120px;--nh:40px;padding:58px 20px 18px;text-align:center;margin-top:18px}
 .pinbox .who{font-size:22px;font-weight:700}
 .pinbox .muted{color:var(--dk-muted)}
@@ -284,7 +294,7 @@ const ERR = {pin_format:'يجب أن يتكون الرمز من 4 أرقام', a
   too_late:'بدأ وقت هذه الحصة', no_lesson:'لا توجد لديك حصة في هذا الوقت', targets_required:'اختر زميلًا واحدًا على الأقل',
   too_many_targets:'اختر 15 زميلًا على الأكثر', already_requested:'أرسلت طلبًا لهذه الحصة من قبل', not_found:'الطلب غير موجود',
   not_target:'هذا الطلب غير موجّه إليك', not_pending:'لم يعد الطلب متاحًا؛ ربما قبله زميل آخر أو أُلغي', not_free:'لست متفرغًا في هذه الحصة',
-  not_active:'الطلب لم يعد نشطًا', not_allowed:'لا يمكنك إلغاء هذا الطلب'};
+  not_active:'الطلب لم يعد نشطًا', not_allowed:'لا يمكنك إلغاء هذا الطلب', done:'تمّت هذه الحصة، ولا يمكن إلغاؤها'};
 const KIND = {cover:'تأمين', swap:'تبديل'};
 const LOGO = '<div class="logo"><svg viewBox="-20 -720 1630 990" role="img" aria-label="بديل"><path fill="#fff" d="M644 -261C577 -261 542 -263 536 -336C536 -402 536 -473 534 -537V-700H499L476 -651L504 -113C491 -90 426 -11 271 -10C56 -10 66 -196 128 -332H97L89 -323C-27 -72 6 250 260 250C524 250 535 -4 535 -79V-85C556 -34 586 -3 629 0H644Z M798 -31 839 -261C834 -318 828 -393 808 -449H792L754 -410L818 -276C784 -267 709 -261 642 -261V0C717 0 777 -17 798 -31Z M1126 -543C1136 -459 1152 -351 1180 -253C1133 -241 983 -209 886 -259L873 -246C882 -113 903 -50 917 -9C1039 71 1231 -8 1231 -9L1221 -141C1261 -56 1317 2 1395 0V-261C1218 -261 1194 -391 1156 -572H1142Z M1547 -31 1588 -261C1583 -318 1577 -393 1557 -449H1541L1503 -410L1567 -276C1533 -267 1458 -261 1391 -261V0C1466 0 1526 -17 1547 -31Z"/><path fill="#d8f35a" d="M663 31 593 101 682 185 743 123 809 185 879 113 790 31 729 91Z M1488 38 1417 109 1507 193 1578 121Z"/></svg></div>';
 const hdr = (title, sub) => `<header class="top">${LOGO}<h1>${title}</h1><div class="sub" id="sub">${sub||''}</div></header>`;
@@ -342,6 +352,12 @@ function tLabel(t){ if (LBL_I !== S.I){ LBL = {}; LBL_I = S.I; const cnt = {};
 function tName(t){ return (S.I.T[t] && (S.I.T[t].name)) || '—'; }
 // الاسم الأول فقط؛ الأسماء المركّبة (عبد الرحمن، أبو بكر…) تبقى كلمتين
 function first(name){ const w = String(name||'').trim().split(/\s+/); return /^(عبد|عبدال|أبو|ابو)$/.test(w[0]) && w[1] ? w[0] + ' ' + w[1] : w[0]; }
+function pEnd(p){ const x = S.I.P[p]; return x ? (x.end || x.endtime || '') : ''; }
+function ended(date, p){ const t = String(pEnd(p)||pTime(p)||'7:00').split(':').map(Number), d = parseIso(date); d.setHours(t[0]||0, t[1]||0, 0, 0); return d <= new Date(); }
+const isDone = r => r.status === 'accepted' && ended(r.date, r.p);
+const CK = '<span class="ck" aria-label="تمّت"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></span>';
+const MONTHS = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+const monthStart = () => today().slice(0, 8) + '01';
 function started(date, p){ const t = String(pTime(p)||'7:00').split(':').map(Number), d = parseIso(date); d.setHours(t[0]||0, t[1]||0, 0, 0); return d <= new Date(); }
 const ORD = ['','الأولى','الثانية','الثالثة','الرابعة','الخامسة','السادسة','السابعة','الثامنة','التاسعة'];
 function pLabel(p){ const t = pTime(p), h = +String(t).split(':')[0]; return (ORD[p] || p) + (t ? ` (${t} ${h && h < 12 ? 'صباحًا' : 'ظهرًا'})` : ''); }
@@ -526,8 +542,8 @@ function renderDay(){
   const I = S.I, me = S.bundle.me, dates = schoolDates(today(), 10), d = dayOf(S.date);
   $('#sub').textContent = `${dayName(d)} ${fmtDate(S.date)}`;
   const td = today(), R = reqs();
-  const nAcc = R.filter(r => r.status === 'accepted' && (r.from === me || r.by === me) && r.date >= td).length;
-  const nCov = R.filter(r => r.status === 'accepted' && r.by === me && r.date >= td).length;
+  const nAcc = R.filter(r => r.status === 'accepted' && (r.from === me || r.by === me) && r.date >= td && !isDone(r)).length;
+  const nCov = R.filter(r => r.status === 'accepted' && r.by === me && r.date >= td && !isDone(r)).length;
   const ic = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
   const stat = (v, k, icon, go) => { const tg = go ? 'button' : 'div'; return `<${tg} class="stat"${go ? ` data-go="${go}"` : ''}><div class="notch">${ic(icon)}<div><div class="v">${v}</div><div class="k">${k}</div></div></div></${tg}>`; };
   const mine = (I.byTeacher[me]||[]).filter(x => x.d === d);
@@ -705,7 +721,9 @@ function renderReq(){
   $('#sub').textContent = 'الطلبات الواردة إليك، وطلباتك، والحصص المتفق عليها';
   const line = r => `${esc(I.C[r.c]||r.c)} · ${esc(I.S[r.s]||'')} · <b>${esc(reqWhen(r))}</b>${pTime(r.p) ? ' · ' + esc(pTime(r.p)) : ''}`;
   const inc = incoming();
-  const acc = R.filter(r => r.status === 'accepted' && (r.from === me || r.by === me) && r.date >= td);
+  const yd = addDays(td, -1);
+  const acc0 = R.filter(r => r.status === 'accepted' && (r.from === me || r.by === me) && r.date >= yd);
+  const acc = [...acc0.filter(r => !isDone(r)), ...acc0.filter(isDone).sort((a,b) => a.date < b.date ? 1 : a.date > b.date ? -1 : b.p - a.p)];
   const sent = R.filter(r => r.from === me && r.status === 'pending' && !started(r.date, r.p));
   const recent = R.filter(r => r.date >= td && ((r.from === me && ['declined','expired'].includes(r.status)) ||
     (r.status === 'cancelled' && r.by && (r.from === me || r.by === me) && r.cx !== me)));
@@ -719,6 +737,7 @@ function renderReq(){
     : '<div class="muted small" style="padding:8px 0">لا توجد طلبات واردة</div>';
   h += '<h2>متفق عليها</h2>';
   h += acc.length ? acc.map(r => { const mineReq = r.from === me, other = mineReq ? r.by : r.from;
+      if (isDone(r)) return `<div class="card cand done"><div class="row"><div class="nm">${mineReq ? `أ. ${esc(tLabel(r.by))} أمّن حصتك` : `أمّنت حصة أ. ${esc(tLabel(r.from))}`}</div><span class="tag o">تمّت</span>${CK}</div><div class="why">${line(r)}</div></div>`;
       return `<div class="card cand ${mineReq ? '' : 'mine'}"><div class="row"><div class="nm">${mineReq ? `أ. ${esc(tLabel(r.by))} يؤمّن حصتك` : `تؤمّن حصة أ. ${esc(tLabel(r.from))}`}</div><span class="tag o">${KIND[r.kind]}</span></div>
         <div class="why">${line(r)}</div><div class="acts">${waBtn(other, waMsg(other, {intro: `بخصوص ${KIND[r.kind]} الحصة التالية:`, rows: reqLines(r), sign: false}))}<button class="btn ghost sm" data-cx="${r.id}">إلغاء</button></div></div>`; }).join('')
     : '<div class="muted small" style="padding:8px 0">لا توجد حصص متفق عليها</div>';
@@ -769,13 +788,34 @@ function renderOpp(){
   $('#main').onclick = e => { const b = e.target.closest('[data-copy]'); if (b) copy(b.dataset.copy); };
 }
 
+// إحصائية المعلم: أرقامه هو بس، من أول الشهر
+function myStats(){
+  const me = S.bundle.me, ms = monthStart(), M = reqs().filter(r => r.date >= ms);
+  const gave = M.filter(r => isDone(r) && r.by === me).length;
+  const got = M.filter(r => isDone(r) && r.from === me);
+  const asked = M.filter(r => r.from === me && !(r.status === 'cancelled' && r.cx === me));
+  const ok = asked.filter(r => r.status === 'accepted').length;
+  const cnt = {}; got.forEach(r => cnt[r.by] = (cnt[r.by]||0) + 1);
+  const top = Object.entries(cnt).sort((a,b) => b[1] - a[1])[0];
+  const ic = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+  const tile = (v, k, icon) => `<div class="stat" style="cursor:default"><div class="notch">${ic(icon)}<div><div class="v">${v}</div><div class="k">${k}</div></div></div></div>`;
+  return `<h2>إحصائيتي · ${MONTHS[+ms.slice(5,7)-1]}</h2>
+    <div class="stats" style="margin-top:8px">
+      ${tile(gave, 'غطّيت عن زملائي', '<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="m9 12 2 2 4-4"/>')}
+      ${tile(got.length, 'غُطّي عنك', '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/>')}
+    </div>
+    <div class="card mstat">${asked.length ? `طلبت <b>${asked.length}</b> ${asked.length === 1 ? 'طلبًا' : 'طلبات'}، قُبل منها <b>${ok}</b>` : 'لم ترسل طلبات هذا الشهر'}
+      ${top ? `<br>أكثر من غطّى عنك: أ. ${esc(tLabel(top[0]))} (${top[1]})` : ''}
+      <div class="muted small">تُحسب الحصة بعد انتهاء وقتها.</div></div>`;
+}
+
 function renderMe(){
   const I = S.I, me = S.bundle.me, t = I.T[me] || {};
   $('#sub').textContent = 'بياناتك تساعد زملاءك في الوصول إليك';
   const myClasses = [...new Set((I.byTeacher[me]||[]).map(x => x.c))].sort((a,b) => (I.C[a]||'').localeCompare(I.C[b]||'', 'ar', {numeric:true}));
   const behind = I.behind[me] || new Set();
   const appts = S.bundle.flags.filter(f => f.kind==='appointment' && f.teacher_id===me && f.on_date >= today()).sort((a,b) => a.on_date < b.on_date ? -1 : 1);
-  $('#main').innerHTML = `
+  $('#main').innerHTML = `${myStats()}
     <h2>متأخر في المنهج مع الصفوف</h2><div class="muted small">اختر الصفوف، وستظهر أولًا عندما يبحث زميل عن معلم لتأمين حصة مع هذا الصف.</div>
     <div class="chips wrapchips" id="beh">${myClasses.map(c => `<button class="chip ${behind.has(c)?'on':''}" data-c="${esc(c)}">${esc(I.C[c]||c)}</button>`).join('')}</div>
     <h2>مواعيدي</h2><div class="muted small">سيطّلع عليها زملاؤك في «مواعيد الزملاء» ويعرضون تأمين حصصك.</div>
@@ -830,6 +870,7 @@ function renderAdmin(){
       <button class="btn block hide" id="imp" style="margin-top:10px">اعتماد الجدول</button></div>
     <div class="card sec"><div style="font-weight:600">حساب المدير (متابعة فقط)</div><div class="muted small">${B.has_viewer ? 'مُفعَّل ✓ — المدير يدخل من «دخول المشرف / المدير» بهذا الرمز. يرى السجل وملخص اليوم الساعة 12 ظهرًا، ولا يستطيع الإلغاء أو التعديل.' : 'اختر رمزًا من 6 أرقام للمدير. يدخل به من «دخول المشرف / المدير» ويرى السجل وملخص اليوم الساعة 12 ظهرًا.'}</div>
       <div style="display:flex;gap:8px;margin-top:10px"><input class="f" id="vc" inputmode="numeric" maxlength="6" dir="ltr" placeholder="6 أرقام" autocomplete="off"><button class="btn" id="vcs">${B.has_viewer ? 'تغيير' : 'حفظ'}</button></div></div>
+    ${adminStats()}
     <h2>سجل الطلبات</h2><div class="chips" id="lf"></div><div id="lg"></div>
     <h2>المعلمين</h2><input class="f" id="q" placeholder="ابحث…"><div class="card list" id="tl" style="margin-top:8px"></div>
     <div style="margin:28px 0;text-align:center"><button class="linkbtn" id="out">تسجيل الخروج</button></div></div>`;
@@ -862,12 +903,13 @@ function renderViewer(){
   document.body.style.paddingBottom = '16px';
   const I = S.I, td = today(), all = reqs(), T = all.filter(r => r.date === td).sort((a,b) => a.p - b.p);
   const acc = T.filter(r => r.status === 'accepted'), pend = T.filter(r => r.status === 'pending');
-  const row = r => `<div class="card cand"><div class="row"><div class="nm">${esc(tLabel(r.from))} ← ${r.by ? esc(tLabel(r.by)) : '—'}</div><span class="tag ${ST[r.status][1]}">${KIND[r.kind]} · ${ST[r.status][0]}</span></div>
+  const row = r => `<div class="card cand"><div class="row"><div class="nm">${esc(tLabel(r.from))} ← ${r.by ? esc(tLabel(r.by)) : '—'}</div>${stTag(r)}</div>
     <div class="why">الحصة ${r.p} · ${esc(I.C[r.c]||r.c)} · ${esc(I.S[r.s]||'')}</div></div>`;
   $('#app').innerHTML = `<div class="wrap">${hdr('متابعة المدير', `${dayName(dayOf(td))} ${fmtDate(td)}`)}
     ${notifCard(false, 'فعّل الإشعارات ليصلك ملخص اليوم الساعة 12 ظهرًا.')}
     <h2>اتفاقات اليوم (${acc.length})</h2>${acc.map(row).join('') || '<div class="muted small" style="padding:8px 0">لا توجد اتفاقات اليوم حتى الآن</div>'}
     ${pend.length ? `<h2>بانتظار الرد اليوم (${pend.length})</h2>${pend.map(row).join('')}` : ''}
+    ${adminStats()}
     <h2>سجل الطلبات</h2><div class="chips" id="lf"></div><div id="lg"></div>
     <h2>الإشعارات</h2>${notifCard(true)}
     <div style="margin:28px 0;text-align:center"><button class="linkbtn" id="out">تسجيل الخروج</button></div></div>`;
@@ -875,16 +917,39 @@ function renderViewer(){
   $('#out').onclick = logout;
 }
 
+// إحصائية الشهر للمشرف والمدير (فيها اعتذر/لم يرد — مش بتظهر للمعلمين)
+function adminStats(){
+  const ms = monthStart(), M = reqs().filter(r => r.date >= ms && r.date <= today());
+  const A = {}, a = t => A[t] || (A[t] = {gave:0, got:0, asked:0, dec:0, nr:0});
+  let total = 0, ok = 0, exp = 0;
+  M.forEach(r => {
+    if (r.status === 'cancelled' && r.cx === r.from) return;
+    total++; a(r.from).asked++;
+    if (r.status === 'accepted') ok++;
+    if (r.status === 'expired') exp++;
+    if (isDone(r)){ a(r.by).gave++; a(r.from).got++; }
+    r.to.forEach(x => { if (x.r === 'declined') a(x.t).dec++; else if (x.r === 'pending' && r.status === 'expired') a(x.t).nr++; });
+  });
+  const rows = Object.entries(A).sort((x,y) => y[1].gave - x[1].gave || y[1].got - x[1].got);
+  const pct = n => total ? Math.round(n * 100 / total) + '%' : '—';
+  return `<h2>إحصائية ${MONTHS[+ms.slice(5,7)-1]}</h2>
+    <div class="card mstat"><b>${total}</b> طلبًا · قُبل <b>${ok}</b> (${pct(ok)}) · دون رد <b>${exp}</b> (${pct(exp)})
+      <div class="muted small">«غطّى» و«غُطّي عنه» تُحسب بعد انتهاء الحصة.</div></div>
+    ${rows.length ? `<div class="card" style="margin-top:8px">${rows.map(([t, v]) => `<div class="st-row"><div class="nm">${esc(tLabel(t))}</div><div class="nums">
+      <span class="tag o">غطّى ${v.gave}</span><span class="tag">غُطّي عنه ${v.got}</span><span class="tag">طلب ${v.asked}</span>${v.dec ? `<span class="tag w">اعتذر ${v.dec}</span>` : ''}${v.nr ? `<span class="tag g">لم يرد ${v.nr}</span>` : ''}</div></div>`).join('')}</div>` : ''}`;
+}
+
 let LOGF = 'accepted';
 const ST = {pending:['بانتظار الرد','w'], accepted:['مقبول','o'], declined:['اعتذر الجميع','g'], cancelled:['ملغى','g'], expired:['انتهى دون رد','g']};
+const stTag = r => isDone(r) ? `<span class="tag o">${KIND[r.kind]} · تمّت</span>${CK}` : `<span class="tag ${ST[r.status][1]}">${KIND[r.kind]} · ${ST[r.status][0]}</span>`;
 function drawLog(){
   const I = S.I, td = today(), all = reqs().slice().sort((a,b) => a.date < b.date ? 1 : a.date > b.date ? -1 : b.p - a.p);
   const F = {accepted:'مقبولة', pending:'معلّقة', cancelled:'ملغاة', all:'الكل'};
   $('#lf').innerHTML = Object.entries(F).map(([k,v]) => `<button class="chip ${LOGF===k?'on':''}" data-f="${k}">${v} (${k==='all' ? all.length : all.filter(r => r.status===k).length})</button>`).join('');
   const rows = all.filter(r => LOGF === 'all' || r.status === LOGF).slice(0, 150);
-  $('#lg').innerHTML = rows.map(r => `<div class="card cand"><div class="row"><div class="nm">${esc(tLabel(r.from))} ← ${r.by ? esc(tLabel(r.by)) : '—'}</div><span class="tag ${ST[r.status][1]}">${KIND[r.kind]} · ${ST[r.status][0]}</span></div>
+  $('#lg').innerHTML = rows.map(r => `<div class="card cand"><div class="row"><div class="nm">${esc(tLabel(r.from))} ← ${r.by ? esc(tLabel(r.by)) : '—'}</div>${stTag(r)}</div>
     <div class="why">${esc(I.C[r.c]||r.c)} · ${esc(I.S[r.s]||'')} · ${esc(reqWhen(r))}${r.status==='cancelled' && r.cx ? ' · ألغاه ' + (r.cx==='admin' ? 'المشرف' : esc(tLabel(r.cx))) : ''}</div>
-    ${!S.bundle.is_viewer && ['pending','accepted'].includes(r.status) && r.date >= td ? `<div class="acts"><button class="btn ghost sm" data-cx="${r.id}">إلغاء</button></div>` : ''}</div>`).join('') || '<div class="muted small" style="padding:8px 0">لا يوجد</div>';
+    ${!S.bundle.is_viewer && ['pending','accepted'].includes(r.status) && r.date >= td && !isDone(r) ? `<div class="acts"><button class="btn ghost sm" data-cx="${r.id}">إلغاء</button></div>` : ''}</div>`).join('') || '<div class="muted small" style="padding:8px 0">لا يوجد</div>';
   $('#lf').onclick = e => { const c = e.target.closest('.chip'); if (c){ LOGF = c.dataset.f; drawLog(); } };
   $('#lg').onclick = async e => { const b = e.target.closest('[data-cx]'); if (!b || !confirm('إلغاء هذا الطلب؟')) return;
     try { await rpc('cancel_request', {p_token:S.token, p_id:+b.dataset.cx}); await refresh(true); drawLog(); toast('تم الإلغاء'); } catch(err){ toast(err.message); } };
