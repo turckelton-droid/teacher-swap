@@ -118,6 +118,12 @@ nav.tabs button.on .badge{background:var(--acc);color:var(--dk)}
 .ck svg{width:16px;height:16px}
 .mstat{padding:12px 16px;margin:10px 0;font-size:14px;line-height:1.8}
 .mstat b{font-size:16px}
+.stat.on{outline:3px solid var(--acc);outline-offset:-3px}
+.sdet{padding:12px 16px;margin:28px 0 10px}
+.sdh{font-weight:700;margin-bottom:4px}
+.sdr{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-top:1px solid var(--sock)}
+.sdr:first-of-type{border-top:0}
+.sdr b{font-size:16px}
 .st-row{padding:12px 16px;border-bottom:1px solid var(--line)}
 .st-row:last-child{border-bottom:0}
 .st-row .nm{font-weight:500}
@@ -788,25 +794,30 @@ function renderOpp(){
   $('#main').onclick = e => { const b = e.target.closest('[data-copy]'); if (b) copy(b.dataset.copy); };
 }
 
-// إحصائية المعلم: أرقامه هو بس، من أول الشهر
+// إحصائية المعلم: أرقامه هو بس، من أول الشهر. الضغط على البلاطة يفتح الأسماء بالعدد
 function myStats(){
   const me = S.bundle.me, ms = monthStart(), M = reqs().filter(r => r.date >= ms);
-  const gave = M.filter(r => isDone(r) && r.by === me).length;
+  const gaveL = M.filter(r => isDone(r) && r.by === me);
   const got = M.filter(r => isDone(r) && r.from === me);
   const asked = M.filter(r => r.from === me && !(r.status === 'cancelled' && r.cx === me));
   const ok = asked.filter(r => r.status === 'accepted').length;
-  const cnt = {}; got.forEach(r => cnt[r.by] = (cnt[r.by]||0) + 1);
-  const top = Object.entries(cnt).sort((a,b) => b[1] - a[1])[0];
+  const names = (L, key) => { const c = {}; L.forEach(r => c[r[key]] = (c[r[key]]||0) + 1);
+    return Object.entries(c).sort((a,b) => b[1] - a[1] || tLabel(a[0]).localeCompare(tLabel(b[0]), 'ar')); };
   const ic = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
-  const tile = (v, k, icon) => `<div class="stat" style="cursor:default"><div class="notch">${ic(icon)}<div><div class="v">${v}</div><div class="k">${k}</div></div></div></div>`;
+  const tile = (id, v, k, icon) => `<button class="stat${S.sd === id ? ' on' : ''}" data-sd="${id}" aria-expanded="${S.sd === id}"><div class="notch">${ic(icon)}<div><div class="v">${v}</div><div class="k">${k}</div></div></div></button>`;
+  const det = !S.sd ? '' : (() => {
+    const L = S.sd === 'gave' ? names(gaveL, 'from') : names(got, 'by');
+    const head = S.sd === 'gave' ? 'غطّيت عن' : 'غطّى عنك';
+    return `<div class="card sdet"><div class="sdh">${head}</div>${L.length
+      ? L.map(([t, n]) => `<div class="sdr"><span>أ. ${esc(tLabel(t))}</span><b>${n}</b></div>`).join('')
+      : `<div class="muted small">${S.sd === 'gave' ? 'لم تغطِّ عن أحد هذا الشهر' : 'لم يغطِّ عنك أحد هذا الشهر'}</div>`}</div>`; })();
   return `<h2>إحصائيتي · ${MONTHS[+ms.slice(5,7)-1]}</h2>
-    <div class="stats" style="margin-top:8px">
-      ${tile(gave, 'غطّيت عن زملائي', '<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="m9 12 2 2 4-4"/>')}
-      ${tile(got.length, 'غُطّي عنك', '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/>')}
-    </div>
+    <div class="stats" id="mys" style="margin-top:8px">
+      ${tile('gave', gaveL.length, 'غطّيت عن زملائي', '<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="m9 12 2 2 4-4"/>')}
+      ${tile('got', got.length, 'غُطّي عنك', '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/>')}
+    </div>${det}
     <div class="card mstat">${asked.length ? `طلبت <b>${asked.length}</b> ${asked.length === 1 ? 'طلبًا' : 'طلبات'}، قُبل منها <b>${ok}</b>` : 'لم ترسل طلبات هذا الشهر'}
-      ${top ? `<br>أكثر من غطّى عنك: أ. ${esc(tLabel(top[0]))} (${top[1]})` : ''}
-      <div class="muted small">تُحسب الحصة بعد انتهاء وقتها.</div></div>`;
+      <div class="muted small">اضغط على الرقم لترى الأسماء. تُحسب الحصة بعد انتهاء وقتها.</div></div>`;
 }
 
 function renderMe(){
@@ -837,6 +848,7 @@ function renderMe(){
   $('#savePh').onclick = async () => { try { await rpc('update_phone', {p_token:S.token, p_phone:$('#ph').value}); await refresh(true); toast('تم الحفظ'); } catch(err){ toast(err.message); } };
   $('#savePin').onclick = async () => { try { await rpc('change_pin', {p_token:S.token, p_old:$('#po').value, p_new:$('#pn').value}); toast('تم تغيير الرمز'); $('#po').value = $('#pn').value = ''; } catch(err){ toast(err.message); } };
   $('#out').onclick = logout;
+  $('#mys').onclick = e => { const b = e.target.closest('[data-sd]'); if (!b) return; S.sd = S.sd === b.dataset.sd ? null : b.dataset.sd; renderMe(); };
 }
 
 function apptSheet(){
