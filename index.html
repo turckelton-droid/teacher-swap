@@ -801,6 +801,7 @@ function myStats(){
   const got = M.filter(r => isDone(r) && r.from === me);
   const asked = M.filter(r => r.from === me && !(r.status === 'cancelled' && r.cx === me));
   const ok = asked.filter(r => r.status === 'accepted').length;
+  const no = asked.filter(r => r.status === 'declined' || r.status === 'expired').length;
   const names = (L, key) => { const c = {}; L.forEach(r => c[r[key]] = (c[r[key]]||0) + 1);
     return Object.entries(c).sort((a,b) => b[1] - a[1] || tLabel(a[0]).localeCompare(tLabel(b[0]), 'ar')); };
   const ic = p => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
@@ -816,7 +817,7 @@ function myStats(){
       ${tile('gave', gaveL.length, 'غطّيت عن زملائي', '<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="m9 12 2 2 4-4"/>')}
       ${tile('got', got.length, 'غُطّي عنك', '<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/>')}
     </div>${det}
-    <div class="card mstat">${asked.length ? `طلبت <b>${asked.length}</b> ${asked.length === 1 ? 'طلبًا' : 'طلبات'}، قُبل منها <b>${ok}</b>` : 'لم ترسل طلبات هذا الشهر'}
+    <div class="card mstat">${asked.length ? `طلبت <b>${asked.length}</b> ${asked.length === 1 ? 'طلبًا' : 'طلبات'}، قُبل منها <b>${ok}</b>${no ? ` · لم يُقبل <b>${no}</b>` : ''}` : 'لم ترسل طلبات هذا الشهر'}
       <div class="muted small">اضغط على الرقم لترى الأسماء. تُحسب الحصة بعد انتهاء وقتها.</div></div>`;
 }
 
