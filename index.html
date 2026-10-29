@@ -135,6 +135,9 @@ h2{font-size:19px;font-weight:700;margin:26px 0 10px}
 .sec{padding:16px}
 .hide{display:none!important}
 .selbtn.on{background:var(--dk);color:var(--acc);border-color:var(--dk)}
+.net{position:fixed;top:calc(env(safe-area-inset-top) + 8px);left:50%;transform:translateX(-50%);background:var(--dk);color:#fff;font-size:12.5px;padding:6px 14px;border-radius:99px;z-index:60;pointer-events:none;white-space:nowrap;display:none}
+.net.on{display:block}
+.cq{margin:6px 0 2px}
 .sendbar{position:sticky;bottom:0;background:var(--bg);padding:12px 0 4px}
 .card.mine{border:2px solid var(--ink)}
 .linkbtn{background:none;border:0;color:var(--ink);cursor:pointer;padding:10px;font-size:14px;font-weight:500;text-decoration:underline;text-underline-offset:4px}
@@ -144,7 +147,7 @@ h2{font-size:19px;font-weight:700;margin:26px 0 10px}
 <div id="app"></div>
 <div class="sheet-bg" id="sheetBg"></div>
 <div class="sheet" id="sheet"><div class="grab"></div><div class="wrap" id="sheetBody"></div></div>
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast"></div><div class="net" id="net"></div>
 
 <script id="parser">
 // ===== aSc / Oman XML parser (works on raw bytes; detects windows-1256) =====
@@ -296,9 +299,14 @@ const store = {
   set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} },
   del(k){ try { localStorage.removeItem(k); } catch(e){} }
 };
+function offErr(){ const e = new Error('لا يوجد اتصال بالإنترنت'); e.code = 'offline'; return e; }
 async function rpc(fn, args, keep){
-  const r = await fetch(SB_URL + '/rest/v1/rpc/' + fn, {method:'POST', keepalive: !!keep,
-    headers:{'Content-Type':'application/json', apikey: SB_KEY, Authorization:'Bearer ' + SB_KEY}, body: JSON.stringify(args || {})});
+  if (navigator.onLine === false) throw offErr();
+  const ac = new AbortController(), tm = setTimeout(() => ac.abort(), 20000);
+  let r;
+  try { r = await fetch(SB_URL + '/rest/v1/rpc/' + fn, {method:'POST', keepalive: !!keep, signal: ac.signal,
+    headers:{'Content-Type':'application/json', apikey: SB_KEY, Authorization:'Bearer ' + SB_KEY}, body: JSON.stringify(args || {})}); }
+  catch(e){ throw offErr(); } finally { clearTimeout(tm); }
   const txt = await r.text(); let j = null; try { j = txt ? JSON.parse(txt) : null; } catch(e){}
   if (!r.ok){ const code = (j && j.message) || 'error'; const e = new Error(ERR[code] || ('حدث خطأ، حاول مرة أخرى' + (code !== 'error' ? ' (' + String(code).slice(0, 80) + ')' : ''))); e.code = code; throw e; }
   return j;
@@ -350,6 +358,43 @@ function incoming(){ const me = S.bundle.me; return reqs().filter(r => r.status 
 function reqWhen(r){ return `${dayName(dayOf(r.date))} ${fmtDate(r.date)} الحصة ${r.p}`; }
 function waBtn(t, msg, label){ const l = waLink(t, msg); return l ? `<a class="btn wa sm" href="${l}" target="_blank" rel="noopener" style="text-align:center;text-decoration:none">${label||'واتساب'}</a>` : ''; }
 
+// ---------- طلبات محفوظة تُرسل عند عودة الاتصال ----------
+const OB_KEY = 'ts_outbox';
+function outbox(){ return store.get(OB_KEY) || []; }
+function obFor(date, p, kind){ return outbox().filter(x => x.date === date && x.p === p && (!kind || x.kind === kind)); }
+async function createReq(kind, date, p, targets, keep){
+  try { await rpc('create_request', {p_token: S.token, p_kind: kind, p_date: date, p_period: p, p_targets: targets, p_note: null}, keep); return false; }
+  catch(e){
+    if (e.code !== 'offline') throw e;
+    const ob = outbox(), ex = ob.find(x => x.kind === kind && x.date === date && x.p === p);
+    if (ex) targets.forEach(t => { if (!ex.to.includes(t)) ex.to.push(t); }); else ob.push({kind, date, p, to: [...targets], me: S.bundle.me});
+    store.set(OB_KEY, ob); updNet(); return true;
+  }
+}
+let FLUSHING = false;
+async function flushOutbox(){
+  if (FLUSHING || !S.token || !S.bundle || !outbox().length) return;
+  FLUSHING = true; let sent = 0;
+  try {
+    let ob = outbox();
+    while (ob.length){
+      const x = ob[0];
+      if (x.me === S.bundle.me){
+        try { await rpc('create_request', {p_token: S.token, p_kind: x.kind, p_date: x.date, p_period: x.p, p_targets: x.to, p_note: null}); sent++; }
+        catch(e){ if (e.code === 'offline') break; toast(`تعذّر إرسال طلب ${KIND[x.kind]} الحصة ${x.p}: ${e.message}`); }
+      }
+      ob.shift(); store.set(OB_KEY, ob);
+    }
+  } finally { FLUSHING = false; updNet(); }
+  if (sent){ await refresh(true); if (!$('#sheet').classList.contains('open')) route();
+    toast(sent === 1 ? 'عاد الاتصال، وأُرسل الطلب المحفوظ ✓' : `عاد الاتصال، وأُرسلت ${sent} طلبات محفوظة ✓`); }
+}
+function updNet(){ const el = $('#net'); if (!el) return; const n = S.token ? outbox().length : 0, off = navigator.onLine === false;
+  el.textContent = off ? 'غير متصل · تُعرض آخر نسخة محفوظة' + (n ? ` · ${n} ${n === 1 ? 'طلب' : 'طلبات'} بانتظار الإرسال` : '') : n ? `${n === 1 ? 'طلب' : 'طلبات'} بانتظار الإرسال…` : '';
+  el.classList.toggle('on', off || !!n); }
+addEventListener('online', () => { updNet(); flushOutbox(); poll(); });
+addEventListener('offline', updNet);
+
 async function refresh(silent){
   try {
     const old = S.bundle, args = {p_token: S.token};
@@ -357,12 +402,13 @@ async function refresh(silent){
     let b = await rpc('get_bundle', args);
     if (b.same) { const {same, ...rest} = b; b = {...old, ...rest}; }
     S.bundle = b; store.set('ts_bundle', b); S.I = buildIndex(b);
+    updNet(); if (outbox().length) setTimeout(flushOutbox, 0);
   } catch(e){
     if (e.code === 'no_session'){ logout(); return; }
     if (!silent) toast('لا يوجد اتصال، تُعرض آخر نسخة محفوظة');
   }
 }
-function logout(){ dropPush(); S.token = null; S.bundle = null; S.I = null; store.del('ts_token'); store.del('ts_bundle'); renderLogin(); }
+function logout(){ dropPush(); S.token = null; S.bundle = null; S.I = null; store.del('ts_token'); store.del('ts_bundle'); store.del(OB_KEY); updNet(); renderLogin(); }
 
 // ---------- Login ----------
 let LOGIN = {list: [], pick: null, mode: 'list', pin: '', pin2: '', phone: ''};
@@ -502,7 +548,8 @@ function renderDay(){
         return `<div class="slot free"><div class="n">${p}</div><div class="b small">فراغ${pTime(p)?' · '+esc(pTime(p)):''}</div></div>`;
       }
       const rq = I.slotReq[me+'|'+S.date+'|'+p];
-      const rtag = !rq ? '' : rq.status === 'accepted' ? `<span class="tag o">${KIND[rq.kind]}: أ. ${esc(tLabel(rq.by))}</span>` : '<span class="tag w">طلب بانتظار الرد</span>';
+      const qd = !rq && obFor(S.date, p).length;
+      const rtag = qd ? '<span class="tag w">طلب بانتظار الاتصال</span>' : !rq ? '' : rq.status === 'accepted' ? `<span class="tag o">${KIND[rq.kind]}: أ. ${esc(tLabel(rq.by))}</span>` : '<span class="tag w">طلب بانتظار الرد</span>';
       return `<div class="slot" data-p="${p}"><div class="n">${p}</div><div class="b"><div class="t">${esc(I.C[l.c]||l.c)} ${myAppts.has(p)?'<span class="tag w">لديك موعد</span>':''}${rtag}</div>
         <div class="muted small">${esc(I.S[l.s]||'')} · ${esc(pTime(p))}</div></div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--muted)"><path d="M15 6l-6 6 6 6"/></svg></div>`; }).join('')}
     ${mine.length ? '' : '<div class="empty" style="color:var(--dk-muted)">لا توجد حصص في هذا اليوم</div>'}</div>`;
@@ -521,18 +568,27 @@ $('#sheetBg').onclick = closeSheet;
 function candCard(t, why, msg, tags, sel){
   const link = waLink(t, msg);
   if (sel && sel.sent) tags = (tags||'') + '<span class="tag o">✓ أُرسل الطلب</span>';
-  const can = sel && !sel.sent;
+  else if (sel && sel.q) tags = (tags||'') + '<span class="tag w">يُرسل عند الاتصال</span>';
+  const can = sel && !sel.sent && !sel.q;
   const selBtn = can ? `<button class="btn ghost sm selbtn ${sel.on?'on':''}" data-sel="${esc(t)}">${sel.on ? '✓ مختار' : 'اختيار'}</button>` : '';
   return `<div class="card cand"><div class="row"><div class="nm">${esc(tName(t))}</div>${tags||''}</div><div class="why">${why}</div>
     <div class="acts">${selBtn}${link ? `<a class="btn wa sm" href="${link}" target="_blank" rel="noopener"${can ? ` data-wareq="${esc(t)}"` : ''} style="text-align:center;text-decoration:none">واتساب</a>` : `<button class="btn sm ghost" disabled>لا يوجد رقم</button>`}
     ${sel ? '' : `<button class="btn ghost sm" data-copy="${esc(msg)}">نسخ الرسالة</button>`}</div></div>`;
 }
 
-let PICK = new Set();
+let PICK = new Set(), SLOTQ = '';
+const SHOWN = 25;
+// يضيف للكارت اسمه (للبحث) وترتيبه؛ اللي بعد أول 25 يظهر بالبحث بس
+function tagCand(html, t, i){ return html.replace('<div class="card cand"', `<div class="card cand" data-n="${esc(norm(tName(t)))}"${i >= SHOWN ? ' style="display:none"' : ''} data-i="${i}"`); }
+function filterCands(){
+  const q = norm(SLOTQ), cs = [...document.querySelectorAll('#cands .cand[data-n]')]; let n = 0;
+  cs.forEach(c => { const ok = q ? c.dataset.n.includes(q) : +c.dataset.i < SHOWN; c.style.display = ok ? '' : 'none'; if (ok) n++; });
+  const e = $('#cqe'); if (e) e.style.display = cs.length && !n ? '' : 'none';
+}
 function openSlot(p, mode, keep, more){
   const I = S.I, me = S.bundle.me, date = S.date, d = dayOf(date);
   const l = (I.byTeacher[me]||[]).find(x => x.d === d && x.p === p); if (!l) return;
-  mode = mode || 'cover'; if (!keep) PICK = new Set();
+  mode = mode || 'cover'; if (!keep){ PICK = new Set(); SLOTQ = ''; }
   const cls = I.C[l.c] || l.c, myName = first(tName(me));
   const when = `${dayName(d)} ${fmtDate(date)} الحصة ${p}`;
   const head = `<div style="font-weight:700;font-size:17px">${esc(cls)} · ${esc(I.S[l.s]||'')}</div><div class="muted small">${esc(when)}${pTime(p)?' · '+esc(pTime(p)):''}</div>`;
@@ -540,41 +596,45 @@ function openSlot(p, mode, keep, more){
   if (rq && !(more && rq.status === 'pending')) return openReqStatus(rq, head, p);
   if (rq) mode = rq.kind;
   const sentTo = new Set(rq ? rq.to.map(x => x.t) : []);
+  const qTo = new Set(obFor(date, p, rq ? rq.kind : mode).flatMap(x => x.to));
   const late = started(date, p);
   let body = '', msgs = {};
   if (mode === 'cover'){
     const list = coverCandidates(I, me, date, p, l.c);
-    body = list.length ? list.slice(0, 25).map(x => {
+    body = list.length ? list.map((x, i) => {
       const tags = (x.isBehind ? '<span class="tag w">متأخر مع الصف</span>' : '') + (x.teaches && !x.isBehind ? '<span class="tag o">يدرّس الصف</span>' : '');
       const msg = msgs[x.t] = waMsg(x.t, {intro: 'أرجو منك التكرم بتأمين الحصة التالية:', rows: slotLines(date, p, cls), link: true, outro: THANKS});
-      return candCard(x.t, `متفرغ في هذا الوقت · لديه ${x.load} حصص في اليوم`, msg, tags, late ? null : {on: PICK.has(x.t), sent: sentTo.has(x.t)});
+      return tagCand(candCard(x.t, `متفرغ في هذا الوقت · لديه ${x.load} حصص في اليوم`, msg, tags, late ? null : {on: PICK.has(x.t), sent: sentTo.has(x.t), q: qTo.has(x.t)}), x.t, i);
     }).join('') : '<div class="empty">لا يوجد معلم متفرغ في هذه الحصة</div>';
   } else {
     const list = swapCandidates(I, me, date, p, l.c, today()), seen = new Set();
-    body = list.length ? list.slice(0, 25).map(x => {
+    body = list.length ? list.map((x, i) => {
       const w2 = `${dayName(x.d2)} ${fmtDate(x.date2)} الحصة ${x.p2}`;
       const msg = waMsg(x.t, {intro: 'أرجو منك التكرم بتبديل الحصة التالية معي:', rows: slotLines(date, p, cls) + `\n🔁 وآخذ حصتك مع الصف نفسه: ${dayName(x.d2)} ${fmtDate(x.date2)}، الحصة ${pLabel(x.p2)}`, link: true, outro: THANKS});
       if (!msgs[x.t]) msgs[x.t] = msg;
       const canSel = !late && !seen.has(x.t); seen.add(x.t);
-      return candCard(x.t, `يأخذ حصتك، وتأخذ حصته <b>${esc(w2)}</b> (${esc(I.S[x.subj]||'')})`, msg, x.isBehind ? '<span class="tag w">متأخر مع الصف</span>' : '', canSel ? {on: PICK.has(x.t), sent: sentTo.has(x.t)} : null);
+      return tagCand(candCard(x.t, `يأخذ حصتك، وتأخذ حصته <b>${esc(w2)}</b> (${esc(I.S[x.subj]||'')})`, msg, x.isBehind ? '<span class="tag w">متأخر مع الصف</span>' : '', canSel ? {on: PICK.has(x.t), sent: sentTo.has(x.t), q: qTo.has(x.t)} : null), x.t, i);
     }).join('') : '<div class="empty">لا يوجد تبديل مناسب مع الصف نفسه في هذا الأسبوع</div>';
   }
   openSheet(`${head}
     ${rq ? `<div class="seg"><button class="on">${KIND[mode]} · أضف زملاء للطلب</button></div>` : `<div class="seg"><button data-m="cover" class="${mode==='cover'?'on':''}">تأمين</button><button data-m="swap" class="${mode==='swap'?'on':''}">تبديل</button></div>`}
     <div class="muted small" style="margin-bottom:4px">${mode==='cover' ? 'زميل متفرغ يؤمّن الحصة مكانك. يظهر أولًا المتأخرون في المنهج ومن يدرّسون الصف.' : 'زميل يدرّس الصف نفسه، فتتبادلان الحصتين. تتفقان لاحقًا على موعد ردّ الحصة.'}
     ${late ? '' : '<br>اضغط «واتساب» ليُسجَّل الطلب ويُرسل للزميل، أو اختر أكثر من زميل واضغط «أرسل الطلب». أول من يقبل تُسجَّل الحصة باسمه.'}</div>
+    ${body.includes('data-n=') ? `<input class="f cq" id="cq" type="search" placeholder="ابحث باسم زميل…" autocomplete="off" value="${esc(SLOTQ)}"><div class="empty" id="cqe" style="display:none">لا يوجد زميل بهذا الاسم ضمن المقترحين لهذه الحصة</div>` : ''}
     <div id="cands">${body}</div>
     ${late || !body.includes('data-sel') && !PICK.size ? '' : `<div class="sendbar"><button class="btn block" id="send" ${PICK.size?'':'disabled'}>أرسل الطلب${PICK.size ? ' إلى ' + PICK.size : ''}</button></div>`}
     ${rq ? '' : '<button class="btn ghost block" id="mkappt" style="margin-top:8px">سجّل أن لديّ موعدًا في هذه الحصة</button>'}`);
+  if ($('#cq')){ $('#cq').oninput = e => { SLOTQ = e.target.value; filterCands(); }; filterCands(); }
   $('#sheetBody').querySelector('.seg').onclick = e => { const b = e.target.closest('button'); if (b && b.dataset.m && b.dataset.m !== mode) openSlot(p, b.dataset.m); };
   $('#cands').onclick = e => {
     const c = e.target.closest('[data-copy]'); if (c) return copy(c.dataset.copy);
     const w = e.target.closest('[data-wareq]');
     if (w){ // الواتساب بيفتح عادي، وفي نفس الوقت بنسجّل الطلب
       const t = w.dataset.wareq; w.removeAttribute('data-wareq');
-      rpc('create_request', {p_token: S.token, p_kind: mode, p_date: date, p_period: p, p_targets: [t], p_note: null}, true)
-        .then(() => refresh(true)).then(() => {
-          toast('تم تسجيل الطلب وإرساله إلى أ. ' + first(tName(t)) + ' ✓');
+      let queued = false;
+      createReq(mode, date, p, [t], true)
+        .then(q => { queued = q; return q ? null : refresh(true); }).then(() => {
+          toast(queued ? 'لا يوجد اتصال: حُفظ الطلب وسيُرسل إلى أ. ' + first(tName(t)) + ' عند عودة الاتصال' : 'تم تسجيل الطلب وإرساله إلى أ. ' + first(tName(t)) + ' ✓');
           if ($('#sheet').classList.contains('open')){ const sc = $('#sheet').scrollTop; openSlot(p, mode, true, true); $('#sheet').scrollTop = sc; }
         }).catch(err => toast(err.message));
       return;
@@ -587,10 +647,10 @@ function openSlot(p, mode, keep, more){
     if (!PICK.size) return; sb.disabled = true;
     const to = [...PICK];
     try {
-      await rpc('create_request', {p_token: S.token, p_kind: mode, p_date: date, p_period: p, p_targets: to, p_note: null});
+      const queued = await createReq(mode, date, p, to);
       PICK = new Set();
-      await refresh(true);
-      openSheet(`${head}<div class="empty" style="padding:16px 0 8px"><b>تم إرسال الطلب ✓</b><br>سيظهر لزملائك في «طلباتي». نبّههم عبر الواتساب:</div>
+      if (!queued) await refresh(true);
+      openSheet(`${head}<div class="empty" style="padding:16px 0 8px">${queued ? '<b>لا يوجد اتصال الآن</b><br>حُفظ الطلب وسيُرسل تلقائيًا عند عودة الاتصال. يمكنك تنبيه زملائك عبر الواتساب:' : '<b>تم إرسال الطلب ✓</b><br>سيظهر لزملائك في «طلباتي». نبّههم عبر الواتساب:'}</div>
         ${to.map(t => `<div class="card cand"><div class="row"><div class="nm">${esc(tName(t))}</div>${waBtn(t, msgs[t]) || '<span class="muted small">لا يوجد رقم</span>'}</div></div>`).join('')}
         <button class="btn ghost block" id="done" style="margin-top:10px">تم</button>`);
       $('#done').onclick = () => { closeSheet(); route(); };
@@ -644,7 +704,10 @@ function renderReq(){
   const sent = R.filter(r => r.from === me && r.status === 'pending' && !started(r.date, r.p));
   const recent = R.filter(r => r.date >= td && ((r.from === me && ['declined','expired'].includes(r.status)) ||
     (r.status === 'cancelled' && r.by && (r.from === me || r.by === me) && r.cx !== me)));
-  let h = '<h2>واردة إليك</h2>';
+  const ob = outbox().filter(x => x.me === me);
+  let h = ob.length ? '<h2>بانتظار الاتصال</h2>' + ob.map((x, i) => `<div class="card cand"><div class="row"><div class="nm">${KIND[x.kind]} · ${esc(reqWhen({date: x.date, p: x.p}))}</div><span class="tag w">يُرسل عند الاتصال</span></div>
+      <div class="why">${x.to.map(t => esc(tLabel(t))).join('، ')}</div><div class="acts"><button class="btn ghost sm" data-obx="${i}">حذف</button></div></div>`).join('') : '';
+  h += '<h2>واردة إليك</h2>';
   h += inc.length ? inc.map(r => `<div class="card cand"><div class="row"><div class="nm">${esc(tName(r.from))}</div><span class="tag">${KIND[r.kind]}</span></div>
       <div class="why">${line(r)}${r.kind === 'swap' ? '<br>تبديل: تتفقان لاحقًا على موعد ردّ الحصة.' : ''}</div>
       <div class="acts"><button class="btn sm" data-acc="${r.id}">قبول</button><button class="btn ghost sm" data-dec="${r.id}">اعتذار</button>${waBtn(r.from, waMsg(r.from, {intro: `بخصوص طلب ${KIND[r.kind]} الحصة التالية:`, rows: reqLines(r), sign: false}))}</div></div>`).join('')
@@ -666,6 +729,8 @@ function renderReq(){
   }
   $('#main').innerHTML = h;
   $('#main').onclick = async e => {
+    const ox = e.target.closest('[data-obx]');
+    if (ox){ if (!confirm('حذف هذا الطلب المحفوظ؟')) return; const x = ob[+ox.dataset.obx]; store.set(OB_KEY, outbox().filter(y => !(y.me === x.me && y.kind === x.kind && y.date === x.date && y.p === x.p))); updNet(); renderReq(); return; }
     const a = e.target.closest('[data-acc]'), d = e.target.closest('[data-dec]'), c = e.target.closest('[data-cx]');
     if (a || d){
       const id = +(a || d).dataset[a ? 'acc' : 'dec'], r = R.find(x => x.id === id);
@@ -894,7 +959,7 @@ setInterval(checkUpd, 5 * 60000);
   if (S.token && S.bundle){ S.I = buildIndex(S.bundle); route(); refresh(true).then(() => { if (S.token && S.bundle && !$('#sheet').classList.contains('open')) route(); }); }
   else if (S.token){ await refresh(); route(); }
   else renderLogin();
-  checkUpd(); syncPush();
+  checkUpd(); syncPush(); updNet(); flushOutbox();
 })();
 </script>
 </body>
