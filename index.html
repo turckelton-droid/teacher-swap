@@ -629,14 +629,19 @@ function openSlot(p, mode, keep, more){
   $('#cands').onclick = e => {
     const c = e.target.closest('[data-copy]'); if (c) return copy(c.dataset.copy);
     const w = e.target.closest('[data-wareq]');
-    if (w){ // الواتساب بيفتح عادي، وفي نفس الوقت بنسجّل الطلب
-      const t = w.dataset.wareq; w.removeAttribute('data-wareq');
-      let queued = false;
-      createReq(mode, date, p, [t], true)
-        .then(q => { queued = q; return q ? null : refresh(true); }).then(() => {
+    if (w){ // نسجّل الطلب الأول ونستنى التأكيد، وبعدين نفتح الواتساب (الآيفون بيوقف البرنامج لما الواتساب يفتح)
+      e.preventDefault();
+      if (w.dataset.busy) return; w.dataset.busy = '1';
+      const t = w.dataset.wareq, href = w.getAttribute('href'), txt = w.textContent;
+      w.textContent = 'جارٍ الإرسال…'; w.style.opacity = '.6';
+      createReq(mode, date, p, [t])
+        .then(async queued => {
+          if (!queued) await refresh(true);
           toast(queued ? 'لا يوجد اتصال: حُفظ الطلب وسيُرسل إلى أ. ' + first(tName(t)) + ' عند عودة الاتصال' : 'تم تسجيل الطلب وإرساله إلى أ. ' + first(tName(t)) + ' ✓');
           if ($('#sheet').classList.contains('open')){ const sc = $('#sheet').scrollTop; openSlot(p, mode, true, true); $('#sheet').scrollTop = sc; }
-        }).catch(err => toast(err.message));
+          if (IS_MOBILE) location.href = href; else window.open(href, '_blank', 'noopener');
+        })
+        .catch(err => { toast(err.message); delete w.dataset.busy; w.textContent = txt; w.style.opacity = ''; });
       return;
     }
     const s = e.target.closest('[data-sel]'); if (!s) return;
