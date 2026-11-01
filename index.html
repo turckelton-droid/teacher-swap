@@ -878,6 +878,7 @@ function renderAdmin(){
   const B = S.bundle;
   if (B.is_viewer) return renderViewer();
   $('#app').innerHTML = `<div class="wrap">${hdr('لوحة المشرف', `${B.teachers.length} معلم، ${B.classes.length} صف، ${B.schedule.length} حصة`)}
+    <a class="btn acc block" href="stats" style="display:block;text-align:center;text-decoration:none;margin:14px 0 4px">إحصائيات بديل ←</a>
     <div class="card sec"><div style="font-weight:600">رفع الجدول (XML)</div><div class="muted small">ملف التصدير من برنامج الجداول. تبقى الرموز السرية وأرقام المعلمين كما هي.</div>
       <input type="file" id="xf" accept=".xml,text/xml" class="f" style="margin-top:10px"><div id="pv" class="small" style="margin-top:10px"></div>
       <button class="btn block hide" id="imp" style="margin-top:10px">اعتماد الجدول</button></div>
