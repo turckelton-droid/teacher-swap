@@ -256,10 +256,11 @@ function range(k){
   if (k === 'week') return [addDays(td, -d.getDay()), td];
   if (k === 'month') return [iso(new Date(y, m, 1)), td];
   if (k === 'last') return [iso(new Date(y, m-1, 1)), iso(new Date(y, m, 0))];
-  // الترم: الأول من 15 أغسطس، الثاني من 1 فبراير
-  if (m >= 7) return [iso(new Date(y, 7, 15)), td];
-  if (m === 0) return [iso(new Date(y-1, 7, 15)), td];
-  return [iso(new Date(y, 1, 1)), td];
+  // الترم (تقويم الوزارة 2026/2027): الأول من 6 سبتمبر، الثاني من 31 يناير
+  const T1 = y + '-09-06', T2 = y + '-01-31';
+  if (td >= T1) return [T1, td];
+  if (td >= T2) return [T2, td];
+  return [(y-1) + '-09-06', td];
 }
 const PER = {week:'هذا الأسبوع', month:'هذا الشهر', last:'الشهر الماضي', term:'الترم'};
 function ago(ts){
