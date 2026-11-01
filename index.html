@@ -910,6 +910,8 @@ function renderAdmin(){
       <button class="btn block hide" id="imp" style="margin-top:10px">اعتماد الجدول</button></div>
     <div class="card sec"><div style="font-weight:600">حساب المدير (متابعة فقط)</div><div class="muted small">${B.has_viewer ? 'مُفعَّل ✓ — المدير يدخل من «دخول المشرف / المدير» بهذا الرمز. يرى السجل وملخص اليوم الساعة 12 ظهرًا، ولا يستطيع الإلغاء أو التعديل.' : 'اختر رمزًا من 6 أرقام للمدير. يدخل به من «دخول المشرف / المدير» ويرى السجل وملخص اليوم الساعة 12 ظهرًا.'}</div>
       <div style="display:flex;gap:8px;margin-top:10px"><input class="f" id="vc" inputmode="numeric" maxlength="6" dir="ltr" placeholder="6 أرقام" autocomplete="off"><button class="btn" id="vcs">${B.has_viewer ? 'تغيير' : 'حفظ'}</button></div></div>
+    <div class="card sec"><div style="font-weight:600">تصفير العدادات</div><div class="muted small">يبدأ عدّ الطلبات والإحصائيات من جديد من لحظة الضغط. الحسابات والرموز والإشعارات تبقى كما هي، والاتفاقات القادمة لا تُلغى.${B.stats_from ? `<br>آخر تصفير: ${fmtDate(new Date(B.stats_from).toLocaleDateString('en-CA',{timeZone:'Asia/Muscat'}))} الساعة ${new Date(B.stats_from).toLocaleTimeString('en-GB',{timeZone:'Asia/Muscat',hour:'2-digit',minute:'2-digit'})}` : ''}</div>
+      <button class="btn ghost block" id="rst" style="margin-top:10px">تصفير العدادات</button></div>
     ${adminStats()}
     <h2>سجل الطلبات</h2><div class="chips" id="lf"></div><div id="lg"></div>
     <h2>المعلمين</h2><div class="muted small" style="margin:-4px 2px 10px">أوقف «مشارك» لمعلم لا يستخدم البرنامج: لا يدخل، ولا يظهر في الاقتراحات ولا الإحصائيات، وتُلغى طلباته القادمة.</div>
@@ -944,6 +946,8 @@ function renderAdmin(){
   };
   $('#imp').onclick = async () => { if (!PARSED || !confirm('سيحلّ الجدول الجديد محلّ القديم. هل أنت متأكد؟')) return;
     try { const r = await rpc('admin_import', {p_token:S.token, p: PARSED}); await refresh(true); renderAdmin(); toast(`تم الاعتماد: ${r.teachers} معلمًا، ${r.lessons} حصة`); } catch(err){ toast(err.message); } };
+  $('#rst').onclick = async () => { if (!confirm('تصفير العدادات؟\nستبدأ الإحصائيات وسجل الطلبات من الآن. الحسابات تبقى كما هي.')) return;
+    try { await rpc('reset_stats', {p_token:S.token}); await refresh(true); renderAdmin(); toast('تم التصفير — العدّ يبدأ من الآن'); } catch(err){ toast(err.message); } };
   $('#vcs').onclick = async () => { const c = $('#vc').value.replace(/\D/g,''); if (c.length !== 6) return toast(ERR.code_format);
     if (B.has_viewer && !confirm('تغيير رمز المدير سيُخرجه من حسابه. متابعة؟')) return;
     try { await rpc('set_viewer_code', {p_token:S.token, p_code:c}); await refresh(true); renderAdmin(); toast('تم حفظ رمز المدير ✓'); } catch(err){ toast(err.message); } };

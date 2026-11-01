@@ -388,7 +388,7 @@ function render(){
       ${tile(pct, `نسبة القبول · من ${C.total} طلبًا`, 'pct')}
       ${tile(`${av[0]}<small> ${av[1]}</small>`, 'متوسط الوقت حتى القبول', 'clock')}
     </div>
-    <p class="note">«غطّى» و«غُطّي عنه» بعد انتهاء الحصة. الطلب الذي سحبه صاحبه لا يُحسب. تسجيل فتح البرنامج بدأ ${since}.</p>
+    <p class="note">«غطّى» و«غُطّي عنه» بعد انتهاء الحصة. الطلب الذي سحبه صاحبه لا يُحسب. تسجيل فتح البرنامج بدأ ${since}.${D.reset_at ? ` الطلبات تُحسب من آخر تصفير (${fmtD(new Date(D.reset_at).toLocaleDateString('en-CA',{timeZone:'Asia/Muscat'}))}).` : ''}</p>
     <div class="sechead"><h2>المعلمون</h2><span class="muted small" id="cnt"></span></div>
     <div class="chips" id="fc" style="padding-top:0">
       <button class="chip ${S.only===true?'on':''}" data-o="1">المفعّلون (${acc})</button><button class="chip ${!S.only?'on':''}" data-o="0">الكل (${T.length})</button>${D.all.length > T.length ? `<button class="chip ${S.only==='x'?'on':''}" data-o="x">غير مشاركين (${D.all.length - T.length})</button>` : ''}</div>
