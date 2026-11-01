@@ -191,6 +191,10 @@ body{padding-bottom:40px}
 .emsg{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;background:var(--bg);border-radius:10px;padding:8px 10px;margin-top:8px;white-space:pre-wrap;word-break:break-word;text-align:left}
 .top-actions{display:flex;justify-content:space-between;align-items:center;margin-top:14px}
 .top-actions a{color:var(--ink);font-size:14px;font-weight:500}
+.sw{flex:0 0 auto;width:50px;height:30px;border-radius:999px;border:2px solid var(--ink);background:var(--sock);position:relative;cursor:pointer;padding:0;transition:background .15s;vertical-align:middle}
+.sw i{position:absolute;top:3px;inset-inline-start:3px;width:20px;height:20px;border-radius:50%;background:var(--ink);transition:inset-inline-start .15s}
+.sw.on{background:var(--acc)}.sw.on i{inset-inline-start:23px}
+.sw:disabled{opacity:.5}
 /* لابتوب: الصفحة كلها أعرض، والكروت في صف واحد، والجدول أكبر */
 @media (min-width:900px){
   .wrap.wide{max-width:1240px;padding:0 32px}
@@ -326,7 +330,7 @@ async function load(fromLogin){
   const [f, t] = range(S.per);
   try { const [d, er] = await Promise.all([rpc('admin_stats', {p_token: S.tok, p_from: f, p_to: t}), rpc('admin_errors', {p_token: S.tok, p_from: f, p_to: t}).catch(() => null)]);
     S.D = d; S.D.errors = er; S.D.from = f; S.D.to = t;
-    if (fromLogin) store.set('bs_token', S.tok); buildLabels(S.D.teachers); S.D.teachers = S.D.teachers.filter(t => !t.ex); render(); }
+    if (fromLogin) store.set('bs_token', S.tok); buildLabels(S.D.teachers); S.D.all = S.D.teachers; S.D.teachers = S.D.all.filter(t => !t.ex); if (S.only === 'x' && !S.D.all.some(t => t.ex)) S.only = true; render(); }
   catch(err){
     if (err.code === 'no_session' || err.code === 'not_admin'){ if (store.get('bs_token') === S.tok) store.del('bs_token'); S.tok = null; return renderLogin(err.code === 'not_admin' ? 'هذه الصفحة للمشرف فقط' : ''); }
     if (S.D){ toast(err.message); return; }
@@ -361,7 +365,7 @@ const IC = {
   clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'
 };
 const tile = (v, k, i) => `<div class="stat"><div class="notch">${ic(IC[i])}<div><div class="v">${v}</div><div class="k">${k}</div></div></div></div>`;
-const COLS = [['name','المعلم'],['last','آخر فتح'],['days','أيام الفتح'],['gave','غطّى'],['got','غُطّي عنه'],['asked','طلب'],['dec','اعتذر'],['nr','لم يرد'],['push','الإشعارات']];
+const COLS = [['name','المعلم'],['last','آخر فتح'],['days','أيام الفتح'],['gave','غطّى'],['got','غُطّي عنه'],['asked','طلب'],['dec','اعتذر'],['nr','لم يرد'],['push','الإشعارات'],['ex','مشارك']];
 
 function render(){
   const D = S.D, C = compute(), T = D.teachers;
@@ -385,14 +389,15 @@ function render(){
     <p class="note">«غطّى» و«غُطّي عنه» بعد انتهاء الحصة. الطلب الذي سحبه صاحبه لا يُحسب. تسجيل فتح البرنامج بدأ ${since}.</p>
     <div class="sechead"><h2>المعلمون</h2><span class="muted small" id="cnt"></span></div>
     <div class="chips" id="fc" style="padding-top:0">
-      <button class="chip ${S.only?'on':''}" data-o="1">المفعّلون (${acc})</button><button class="chip ${!S.only?'on':''}" data-o="0">الكل (${T.length})</button></div>
+      <button class="chip ${S.only===true?'on':''}" data-o="1">المفعّلون (${acc})</button><button class="chip ${!S.only?'on':''}" data-o="0">الكل (${T.length})</button>${D.all.length > T.length ? `<button class="chip ${S.only==='x'?'on':''}" data-o="x">غير مشاركين (${D.all.length - T.length})</button>` : ''}</div>
+    <div class="muted small" style="margin:0 2px 10px">أوقف «مشارك» لمعلم لا يستخدم البرنامج: لا يدخل، ولا يظهر في الاقتراحات ولا الإحصائيات، وتُلغى طلباته القادمة.</div>
     <div class="toolbar"><input class="f" id="q" placeholder="ابحث بالاسم…" value="${esc(S.q)}"></div>
     <div class="tbl"><table><thead><tr>${COLS.map(([k,v]) => `<th data-k="${k}" class="${S.sort===k?'on':''}" data-dir="${S.dir < 0 ? '↓' : '↑'}">${v}</th>`).join('')}</tr></thead><tbody id="tb"></tbody></table></div>
     ${errSection()}
     <div style="margin:28px 0;text-align:center"><button class="linkbtn" id="out">تسجيل الخروج من الإحصائيات</button></div></div>`;
   S.C = C; drawTable();
   $('#pc').onclick = e => { const b = e.target.closest('[data-p]'); if (!b || b.dataset.p === S.per) return; S.per = b.dataset.p; store.set('bs_per', S.per); load(); };
-  $('#fc').onclick = e => { const b = e.target.closest('[data-o]'); if (!b) return; S.only = b.dataset.o === '1'; $('#fc').querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === b)); drawTable(); };
+  $('#fc').onclick = e => { const b = e.target.closest('[data-o]'); if (!b) return; S.only = b.dataset.o === 'x' ? 'x' : b.dataset.o === '1'; $('#fc').querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === b)); drawTable(); };
   $('#q').oninput = e => { S.q = e.target.value; drawTable(); };
   $('#rf').onclick = () => load();
   if ($('#te')) $('#te').onclick = editTerms;
@@ -401,7 +406,8 @@ function render(){
     if (S.sort === k) S.dir = -S.dir; else { S.sort = k; S.dir = k === 'name' ? 1 : -1; }
     document.querySelectorAll('thead th').forEach(x => { x.classList.toggle('on', x.dataset.k === S.sort); x.dataset.dir = S.dir < 0 ? '↓' : '↑'; });
     drawTable(); };
-  $('#tb').onclick = e => { const tr = e.target.closest('tr[data-t]'); if (tr) teacherSheet(tr.dataset.t); };
+  $('#tb').onclick = e => { const x = e.target.closest('[data-x]'); if (x) return toggleEx(x);
+    const tr = e.target.closest('tr[data-t]'); if (tr) teacherSheet(tr.dataset.t); };
 }
 
 function device(ua){ ua = String(ua || '');
@@ -434,21 +440,31 @@ function errSection(){
 }
 function drawTable(){
   const D = S.D, A = S.C.A, q = norm(S.q);
-  let rows = D.teachers.filter(t => (!S.only || t.pin) && (!q || norm(t.name).includes(q)))
-    .map(t => ({t, v: A[t.id], last: t.last ? +new Date(t.last) : 0}));
-  const val = r => S.sort === 'name' ? null : S.sort === 'last' ? r.last : S.sort === 'days' ? r.t.days : S.sort === 'push' ? +r.t.push : r.v[S.sort];
+  const Z = {gave:0, got:0, asked:0, dec:0, nr:0};
+  let rows = (S.only === 'x' ? D.all.filter(t => t.ex) : D.teachers.filter(t => !S.only || t.pin)).filter(t => !q || norm(t.name).includes(q))
+    .map(t => ({t, v: A[t.id] || Z, last: t.last ? +new Date(t.last) : 0}));
+  const val = r => S.sort === 'name' ? null : S.sort === 'last' ? r.last : S.sort === 'days' ? r.t.days : S.sort === 'push' ? +r.t.push : S.sort === 'ex' ? +!r.t.ex : r.v[S.sort];
   rows.sort((x, y) => S.sort === 'name' ? S.dir * tl(x.t.id).localeCompare(tl(y.t.id), 'ar') : (S.dir * (val(x) - val(y)) || tl(x.t.id).localeCompare(tl(y.t.id), 'ar')));
   const n = (v, cls) => `<td class="${v ? (cls||'') : 'z'}">${v || '·'}</td>`;
-  $('#tb').innerHTML = rows.map(({t, v}) => `<tr data-t="${esc(t.id)}" class="${t.pin ? '' : 'off'}"><td>${esc(tl(t.id))}</td>
+  $('#tb').innerHTML = rows.map(({t, v}) => `<tr data-t="${esc(t.id)}" class="${t.pin && !t.ex ? '' : 'off'}"><td>${esc(tl(t.id))}</td>
     <td class="${t.last ? '' : 'z'}">${t.last ? ago(t.last) : (t.pin ? '—' : 'لم يُفعّل')}</td>${n(t.days)}${n(v.gave,'hot')}${n(v.got)}${n(v.asked)}${n(v.dec)}${n(v.nr)}
-    <td>${t.push ? '<span class="yes">✓</span>' : '<span class="no">✗</span>'}</td></tr>`).join('') || `<tr><td colspan="9" class="z" style="text-align:center;position:static">لا يوجد معلم بهذا الاسم</td></tr>`;
+    <td>${t.push ? '<span class="yes">✓</span>' : '<span class="no">✗</span>'}</td>
+    <td><button class="sw${t.ex ? '' : ' on'}" data-x="${esc(t.id)}" role="switch" aria-checked="${!t.ex}" aria-label="مشارك"><i></i></button></td></tr>`).join('') || `<tr><td colspan="10" class="z" style="text-align:center;position:static">لا يوجد معلم بهذا الاسم</td></tr>`;
   $('#cnt').textContent = rows.length + ' معلم';
 }
 
 const ST = {pending:['بانتظار الرد','w'], accepted:['مقبول','o'], declined:['اعتذر الجميع','g'], cancelled:['ملغى','g'], expired:['انتهى دون رد','g']};
 const KIND = {cover:'تأمين', swap:'تبديل'};
+async function toggleEx(x){
+  const t = S.D.all.find(z => z.id === x.dataset.x); if (!t) return; const on = !t.ex;
+  if (on && !confirm(`إيقاف ${t.name}؟\nلن يدخل البرنامج ولن يظهر في الاقتراحات ولا الإحصائيات، وتُلغى طلباته القادمة. يمكنك إرجاعه في أي وقت.`)) return;
+  x.disabled = true;
+  try { const r = await rpc('set_exempt', {p_token: S.tok, p_teacher: t.id, p_on: on});
+    toast(on ? 'تم الإيقاف' + (r && r.cancelled ? ` · أُلغي ${r.cancelled} طلب` : '') : 'عاد مشاركًا'); await load(); }
+  catch(e){ toast(e.message); x.disabled = false; }
+}
 function teacherSheet(id){
-  const D = S.D, t = D.teachers.find(x => x.id === id), v = S.C.A[id];
+  const D = S.D, t = D.all.find(x => x.id === id), v = S.C.A[id] || {gave:0, got:0, asked:0, dec:0, nr:0};
   const L = D.requests.filter(r => r.from === id || r.by === id || r.to.some(x => x.t === id));
   const role = r => r.from === id ? 'طلب' : r.by === id ? (r.done ? 'غطّى' : 'قبل')
     : (() => { const x = r.to.find(x => x.t === id); return x.r === 'declined' ? 'اعتذر' : r.status === 'expired' ? 'لم يرد' : 'وصله الطلب'; })();
