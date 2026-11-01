@@ -191,6 +191,23 @@ body{padding-bottom:40px}
 .emsg{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;background:var(--bg);border-radius:10px;padding:8px 10px;margin-top:8px;white-space:pre-wrap;word-break:break-word;text-align:left}
 .top-actions{display:flex;justify-content:space-between;align-items:center;margin-top:14px}
 .top-actions a{color:var(--ink);font-size:14px;font-weight:500}
+/* لابتوب: الصفحة كلها أعرض، والكروت في صف واحد، والجدول أكبر */
+@media (min-width:900px){
+  .wrap.wide{max-width:1240px;padding:0 32px}
+  .wide .stats{grid-template-columns:repeat(6,minmax(0,1fr));gap:14px}
+  .wide .stat:nth-child(even){margin-top:0;margin-bottom:0}
+  .wide .stat .k{font-size:14.5px}
+  .wide .note{margin-top:22px}
+  .wide .toolbar input.f{max-width:420px}
+  .wide .tbl table{min-width:0;font-size:16px}
+  .wide .tbl th{font-size:14px;padding:14px 14px}
+  .wide .tbl td{padding:14px 14px}
+  .wide .tbl td:first-child{min-width:220px}
+  .wide .tbl tbody tr:hover td{background:var(--bg)}
+  .wide .errs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .wide .errs .card{margin:0}
+}
+@media (min-width:900px) and (max-width:1180px){ .wide .stats{grid-template-columns:repeat(3,minmax(0,1fr))} }
 </style>
 </head>
 <body>
@@ -309,7 +326,7 @@ async function load(fromLogin){
   const [f, t] = range(S.per);
   try { const [d, er] = await Promise.all([rpc('admin_stats', {p_token: S.tok, p_from: f, p_to: t}), rpc('admin_errors', {p_token: S.tok, p_from: f, p_to: t}).catch(() => null)]);
     S.D = d; S.D.errors = er; S.D.from = f; S.D.to = t;
-    if (fromLogin) store.set('bs_token', S.tok); buildLabels(S.D.teachers); render(); }
+    if (fromLogin) store.set('bs_token', S.tok); buildLabels(S.D.teachers); S.D.teachers = S.D.teachers.filter(t => !t.ex); render(); }
   catch(err){
     if (err.code === 'no_session' || err.code === 'not_admin'){ if (store.get('bs_token') === S.tok) store.del('bs_token'); S.tok = null; return renderLogin(err.code === 'not_admin' ? 'هذه الصفحة للمشرف فقط' : ''); }
     if (S.D){ toast(err.message); return; }
@@ -352,7 +369,7 @@ function render(){
   const pct = C.total ? Math.round(C.ok * 100 / C.total) + '%' : '—';
   const av = C.avg == null ? ['—',''] : dur(C.avg);
   const since = D.since ? `${DAYS[parseIso(D.since).getDay()]} ${fmtD(D.since)}` : 'اليوم';
-  $('#app').innerHTML = `<div class="wrap">
+  $('#app').innerHTML = `<div class="wrap wide">
     <div class="top-actions"><a href="./">→ بديل</a><button class="linkbtn" id="rf" style="padding:0">تحديث</button></div>
     ${hdr(`${PER[S.per]} · ${fmtD(D.from)} – ${fmtD(D.to)}`)}
     <div class="chips" id="pc" style="margin-top:12px">${Object.entries(PER).map(([k,v]) => `<button class="chip ${S.per===k?'on':''}" data-p="${k}">${v}</button>`).join('')}</div>
@@ -410,9 +427,9 @@ function errSection(){
   const E = S.D.errors;
   if (E === null) return '';
   return `<div class="sechead"><h2>الأخطاء</h2><span class="muted small">${E.length ? E.length + ' خطأ' : ''}</span></div>
-    ${E.length ? E.map(e => `<div class="card cand"><div class="row"><div class="nm">${esc(who(e.t))}</div><span class="tag ${e.n > 1 ? 'w' : 'g'}">${e.n > 1 ? '×' + e.n : 'مرة'}</span></div>
+    ${E.length ? '<div class="errs">' + E.map(e => `<div class="card cand"><div class="row"><div class="nm">${esc(who(e.t))}</div><span class="tag ${e.n > 1 ? 'w' : 'g'}">${e.n > 1 ? '×' + e.n : 'مرة'}</span></div>
       <div class="emsg" dir="ltr">${esc(e.msg)}</div>
-      <div class="why">${ago(e.last)} · ${esc(device(e.ua))} · ${esc(e.src)}${e.page ? ' · ' + esc(e.page) : ''}</div></div>`).join('')
+      <div class="why">${ago(e.last)} · ${esc(device(e.ua))} · ${esc(e.src)}${e.page ? ' · ' + esc(e.page) : ''}</div></div>`).join('') + '</div>'
       : '<div class="card mstat">لا توجد أخطاء في هذه الفترة ✓</div>'}`;
 }
 function drawTable(){

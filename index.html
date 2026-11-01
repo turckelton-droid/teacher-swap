@@ -143,6 +143,13 @@ nav.tabs button.on .badge{background:var(--acc);color:var(--dk)}
 .pinbox .linkbtn{color:#fff}
 .list .it{padding:12px 16px;min-height:60px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px}
 .list .it:last-child{border-bottom:0}
+.list .tch{cursor:default}
+.tch .tn{min-width:0}.tch .tg{margin-top:4px;display:flex;align-items:center;flex-wrap:wrap;gap:4px}
+.tch.ex .tn>div:first-child{color:#9c9b93}
+.sw{flex:0 0 auto;width:50px;height:30px;border-radius:999px;border:2px solid var(--ink);background:var(--sock,#E6E4DC);position:relative;cursor:pointer;padding:0;transition:background .15s}
+.sw i{position:absolute;top:3px;inset-inline-start:3px;width:20px;height:20px;border-radius:50%;background:var(--ink);transition:inset-inline-start .15s}
+.sw.on{background:var(--acc)}.sw.on i{inset-inline-start:23px}
+.sw:disabled{opacity:.5}
 .list .it .go{flex:0 0 auto;border:2px solid var(--ink);border-radius:999px;padding:4px 14px;font-size:13px;font-weight:500}
 .toast{position:fixed;bottom:calc(100px + env(safe-area-inset-bottom));inset-inline:16px;max-width:520px;margin:0 auto;background:var(--dk);color:#fff;padding:13px 18px;border-radius:18px;z-index:40;opacity:0;transition:opacity .2s;pointer-events:none;text-align:center}
 .toast.on{opacity:1}
@@ -245,7 +252,7 @@ function buildIndex(B){
 function coverCandidates(I, me, date, p, cls){
   const d = dayOf(date), out = [];
   Object.keys(I.T).forEach(t => {
-    if (t === me || !I.isFree(t,d,p,date)) return;
+    if (t === me || I.T[t].ex || !I.isFree(t,d,p,date)) return;
     const isBehind = I.behind[t] && I.behind[t].has(cls);
     const teaches = I.classTeachers[cls] && I.classTeachers[cls].has(t);
     if (!(I.byTeacher[t]||[]).length) return;
@@ -258,7 +265,7 @@ function swapCandidates(I, me, date, p, cls, today){
   const d = dayOf(date), out = [];
   const weekStart = addDays(date, -(d-1));
   (I.slotsOf[cls]||[]).forEach(s => {
-    if (s.t === me || (s.d === d && s.p === p)) return;
+    if (s.t === me || (I.T[s.t] && I.T[s.t].ex) || (s.d === d && s.p === p)) return;
     let date2 = addDays(weekStart, s.d-1);
     if (date2 < today) date2 = addDays(date2, 7);
     if (date2 === date && s.p === p) return;
@@ -894,7 +901,7 @@ function renderAdmin(){
   document.body.style.paddingBottom = '16px';
   const B = S.bundle;
   if (B.is_viewer) return renderViewer();
-  $('#app').innerHTML = `<div class="wrap">${hdr('لوحة المشرف', `${B.teachers.length} معلم، ${B.classes.length} صف، ${B.schedule.length} حصة`)}
+  $('#app').innerHTML = `<div class="wrap">${hdr('لوحة المشرف', `${B.teachers.filter(t => !t.ex).length} معلم، ${B.classes.length} صف، ${B.schedule.length} حصة`)}
     <a class="btn acc block" href="stats" style="display:block;text-align:center;text-decoration:none;margin:14px 0 4px">إحصائيات بديل ←</a>
     <div class="card sec"><div style="font-weight:600">رفع الجدول (XML)</div><div class="muted small">ملف التصدير من برنامج الجداول. تبقى الرموز السرية وأرقام المعلمين كما هي.</div>
       <input type="file" id="xf" accept=".xml,text/xml" class="f" style="margin-top:10px"><div id="pv" class="small" style="margin-top:10px"></div>
@@ -903,13 +910,25 @@ function renderAdmin(){
       <div style="display:flex;gap:8px;margin-top:10px"><input class="f" id="vc" inputmode="numeric" maxlength="6" dir="ltr" placeholder="6 أرقام" autocomplete="off"><button class="btn" id="vcs">${B.has_viewer ? 'تغيير' : 'حفظ'}</button></div></div>
     ${adminStats()}
     <h2>سجل الطلبات</h2><div class="chips" id="lf"></div><div id="lg"></div>
-    <h2>المعلمين</h2><input class="f" id="q" placeholder="ابحث…"><div class="card list" id="tl" style="margin-top:8px"></div>
+    <h2>المعلمين</h2><div class="muted small" style="margin:-4px 2px 10px">أوقف «مشارك» لمعلم لا يستخدم البرنامج: لا يدخل، ولا يظهر في الاقتراحات ولا الإحصائيات، وتُلغى طلباته القادمة.</div>
+    <input class="f" id="q" placeholder="ابحث…"><div class="muted small" id="exn" style="margin:8px 2px 0"></div><div class="card list" id="tl" style="margin-top:8px"></div>
     <div style="margin:28px 0;text-align:center"><button class="linkbtn" id="out">تسجيل الخروج</button></div></div>`;
-  const draw = q => { $('#tl').innerHTML = B.teachers.filter(t => !q || norm(t.name).includes(norm(q))).sort((a,b) => a.name.localeCompare(b.name,'ar')).map(t =>
-    `<div class="it"><span>${esc(t.name)} ${t.has_pin ? '<span class="tag o">مفعّل</span>' : '<span class="tag">غير مُفعَّل</span>'}</span>${t.has_pin ? `<button class="btn ghost sm" data-r="${esc(t.id)}">إعادة تعيين الرمز</button>` : ''}</div>`).join('') || '<div class="empty">ارفع الجدول أولًا</div>'; };
+  const draw = q => { const nx = B.teachers.filter(t => t.ex).length;
+    $('#exn').textContent = nx ? `${nx} غير مشارك` : '';
+    $('#tl').innerHTML = B.teachers.filter(t => !q || norm(t.name).includes(norm(q))).sort((a,b) => (a.ex?1:0) - (b.ex?1:0) || a.name.localeCompare(b.name,'ar')).map(t =>
+    `<div class="it tch${t.ex ? ' ex' : ''}"><div class="tn"><div>${esc(t.name)}</div><div class="tg">${t.ex ? '<span class="tag g">غير مشارك</span>' : t.has_pin ? '<span class="tag o">مفعّل</span>' : '<span class="tag">لم يُفعّل حسابه</span>'}${!t.ex && t.has_pin ? ` <button class="linkbtn" style="padding:0 6px;font-size:13px" data-r="${esc(t.id)}">إعادة تعيين الرمز</button>` : ''}</div></div>
+      <button class="sw${t.ex ? '' : ' on'}" data-x="${esc(t.id)}" role="switch" aria-checked="${!t.ex}" aria-label="مشارك"><i></i></button></div>`).join('') || '<div class="empty">ارفع الجدول أولًا</div>'; };
   draw(''); $('#q').oninput = e => draw(e.target.value.trim());
   drawLog();
-  $('#tl').onclick = async e => { const b = e.target.closest('[data-r]'); if (!b) return; if (!confirm('هل تريد إعادة تعيين رمز هذا المعلم؟ سينشئ رمزًا جديدًا عند دخوله.')) return;
+  $('#tl').onclick = async e => { const x = e.target.closest('[data-x]');
+    if (x){ const t = B.teachers.find(z => z.id === x.dataset.x); if (!t) return; const on = !t.ex;
+      if (on && !confirm(`إيقاف ${t.name}؟\nلن يدخل البرنامج ولن يظهر في الاقتراحات ولا الإحصائيات، وتُلغى طلباته القادمة. يمكنك إرجاعه في أي وقت.`)) return;
+      x.disabled = true;
+      try { const r = await rpc('set_exempt', {p_token:S.token, p_teacher:t.id, p_on:on}); await refresh(true); S.I = buildIndex(S.bundle); draw($('#q').value.trim());
+        toast(on ? 'تم الإيقاف' + (r && r.cancelled ? ` · أُلغي ${r.cancelled} طلب` : '') : 'عاد مشاركًا'); drawLog(); }
+      catch(err){ toast(err.message); x.disabled = false; }
+      return; }
+    const b = e.target.closest('[data-r]'); if (!b) return; if (!confirm('هل تريد إعادة تعيين رمز هذا المعلم؟ سينشئ رمزًا جديدًا عند دخوله.')) return;
     try { await rpc('admin_reset_pin', {p_token:S.token, p_teacher:b.dataset.r}); await refresh(true); renderAdmin(); toast('تمت إعادة التعيين'); } catch(err){ toast(err.message); } };
   $('#xf').onchange = async e => {
     const f = e.target.files[0]; if (!f) return;
@@ -961,7 +980,7 @@ function adminStats(){
     if (isDone(r)){ a(r.by).gave++; a(r.from).got++; }
     r.to.forEach(x => { if (x.r === 'declined') a(x.t).dec++; else if (x.r === 'pending' && r.status === 'expired') a(x.t).nr++; });
   });
-  const rows = Object.entries(A).sort((x,y) => y[1].gave - x[1].gave || y[1].got - x[1].got);
+  const rows = Object.entries(A).filter(([t]) => !(S.I.T[t] && S.I.T[t].ex)).sort((x,y) => y[1].gave - x[1].gave || y[1].got - x[1].got);
   const pct = n => total ? Math.round(n * 100 / total) + '%' : '—';
   return `<h2>إحصائية ${MONTHS[+ms.slice(5,7)-1]}</h2>
     <div class="card mstat"><b>${total}</b> طلبًا · قُبل <b>${ok}</b> (${pct(ok)}) · دون رد <b>${exp}</b> (${pct(exp)})
