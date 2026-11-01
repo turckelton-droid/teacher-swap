@@ -315,6 +315,8 @@ const APP_URL = location.origin + location.pathname;
 
 const $ = s => document.querySelector(s);
 // توحيد الحروف للبحث فقط: أ إ آ ٱ ← ا، ة ← ه، ى ← ي، وحذف التشكيل والتطويل والمسافات الزائدة
+// اسم معروض مختلف (طلب المستخدم: «أحمد جمال» بدل «أحمد عبدالنبى»)
+const NAME_FIX = {'1527056': 'أحمد جمال'};
 const norm = s => String(s ?? '').replace(/[\u064B-\u0652\u0670\u0640]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي').replace(/\s+/g,' ').trim();
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const store = {
@@ -377,7 +379,7 @@ function lbl2(name, mid){ const w = String(name||'').trim().split(/\s+/), f = fi
 let LBL = null, LBL_I = null;
 function tLabel(t){ if (LBL_I !== S.I){ LBL = {}; LBL_I = S.I; const cnt = {};
     for (const id in S.I.T){ const k = lbl2(S.I.T[id].name); cnt[k] = (cnt[k]||0) + 1; }
-    for (const id in S.I.T){ const nm = S.I.T[id].name, k = lbl2(nm); LBL[id] = cnt[k] > 1 ? lbl2(nm, true) : k; } }
+    for (const id in S.I.T){ const nm = S.I.T[id].name, k = lbl2(nm); LBL[id] = cnt[k] > 1 ? lbl2(nm, true) : k; } Object.assign(LBL, NAME_FIX); }
   return LBL[t] || '—'; }
 function tName(t){ return (S.I.T[t] && (S.I.T[t].name)) || '—'; }
 // الاسم الأول فقط؛ الأسماء المركّبة (عبد الرحمن، أبو بكر…) تبقى كلمتين
