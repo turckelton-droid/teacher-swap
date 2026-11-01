@@ -303,7 +303,7 @@ if (typeof module !== 'undefined') module.exports = Object.assign(module.exports
 const SB_URL = 'https://elgeadktiazterzwaxyn.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVsZ2VhZGt0aWF6dGVyendheHluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMwNzUyNDUsImV4cCI6MjEwODY1MTI0NX0.hKMWNtFxE8ULBmwrXsoBJSOAZHuZ196CYaqGDIYwek4';
 const DAY_FALLBACK = {1:'الأحد',2:'الإثنين',3:'الثلاثاء',4:'الأربعاء',5:'الخميس'};
-const ERR = {pin_format:'يجب أن يتكون الرمز من 4 أرقام', already_set:'هذا الحساب مُفعَّل مسبقًا. ادخل برمزك، أو اضغط «نسيت الرمز؟»', no_teacher:'الاسم غير موجود',
+const ERR = {wa_limit:'وصلت للحد اليومي لفتح أرقام الزملاء (15 زميلًا). حاول غدًا', wa_no_phone:'لا يوجد رقم واتساب لهذا الزميل', pin_format:'يجب أن يتكون الرمز من 4 أرقام', already_set:'هذا الحساب مُفعَّل مسبقًا. ادخل برمزك، أو اضغط «نسيت الرمز؟»', no_teacher:'الاسم غير موجود',
   no_account:'الحساب غير مُفعَّل', locked:'محاولات خاطئة كثيرة. حاول بعد ربع ساعة', bad_pin:'الرمز غير صحيح', no_session:'انتهت الجلسة، سجّل الدخول مجددًا',
   not_admin:'للمشرف فقط', no_phone:'لا يوجد رقم واتساب مسجّل باسمك. تواصل مع المشرف', code_format:'الرمز 6 أرقام', code_same:'اختر رمزًا مختلفًا عن رمز المشرف', date_required:'اختر اليوم والحصص', class_required:'اختر الصف',
   too_late:'بدأ وقت هذه الحصة', no_lesson:'لا توجد لديك حصة في هذا الوقت', targets_required:'اختر زميلًا واحدًا على الأقل',
@@ -369,9 +369,21 @@ function waPhone(raw){
   return n;
 }
 const IS_MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-function waLink(tid, text){ const ph = waPhone(S.I.T[tid] && S.I.T[tid].phone); if (!ph) return null;
-  const q = 'phone=' + ph + '&text=' + encodeURIComponent(text);
+// أرقام الزملاء مش بتنزل مع البيانات (المرحلة 13): الرابط بيبقى wa:<id>?<نص> ويتحوّل لرابط حقيقي وقت الضغط من wa_phone
+const PH = (x => x && x._d === today() ? x : {_d: today()})(store.get('ts_ph')); // بيتجدد كل يوم
+function waUrl(ph, text){ const q = 'phone=' + ph + '&text=' + encodeURIComponent(text);
   return IS_MOBILE ? 'whatsapp://send?' + q : 'https://web.whatsapp.com/send?' + q; }
+function waLink(tid, text){ const t = S.I.T[tid]; const ph = waPhone((t && t.phone) || PH[tid]);
+  if (ph) return waUrl(ph, text);
+  return t && t.wa ? 'wa:' + encodeURIComponent(tid) + '?' + encodeURIComponent(text) : null; }
+async function resolveWa(href){ if (!href || !href.startsWith('wa:')) return href;
+  const i = href.indexOf('?'), tid = decodeURIComponent(href.slice(3, i)), text = decodeURIComponent(href.slice(i + 1));
+  if (!PH[tid]){ const r = await rpc('wa_phone', {p_token:S.token, p_teacher:tid}); PH[tid] = r.phone; store.set('ts_ph', PH); }
+  return waUrl(waPhone(PH[tid]), text); }
+function openWa(link){ if (IS_MOBILE) location.href = link; else window.open(link, '_blank', 'noopener'); }
+document.addEventListener('click', async e => { const a = e.target.closest && e.target.closest('a[href^="wa:"]');
+  if (!a || a.dataset.wareq) return; e.preventDefault(); if (a.dataset.busy) return; a.dataset.busy = '1';
+  try { openWa(await resolveWa(a.getAttribute('href'))); } catch(err){ toast(err.message); } finally { delete a.dataset.busy; } });
 function dayName(d){ return (S.I.D[d] && !/\uFFFD/.test(S.I.D[d])) ? S.I.D[d] : DAY_FALLBACK[d]; }
 function fmtDate(s){ const d = parseIso(s); return d.getDate() + '/' + (d.getMonth()+1); }
 function pTime(p){ const x = S.I.P[p]; return x ? (x.start || x.starttime || '') : ''; }
@@ -458,7 +470,7 @@ async function refresh(silent){
     if (!silent) toast('لا يوجد اتصال، تُعرض آخر نسخة محفوظة');
   }
 }
-function logout(){ dropPush(); S.token = null; S.bundle = null; S.I = null; store.del('ts_token'); store.del('ts_bundle'); store.del(OB_KEY); updNet(); renderLogin(); }
+function logout(){ dropPush(); S.token = null; S.bundle = null; S.I = null; store.del('ts_token'); store.del('ts_bundle'); store.del('ts_ph'); for (const k in PH) if (k !== '_d') delete PH[k]; store.del(OB_KEY); updNet(); renderLogin(); }
 
 // ---------- Login ----------
 let LOGIN = {list: [], pick: null, mode: 'list', pin: '', pin2: '', phone: ''};
@@ -689,7 +701,7 @@ function openSlot(p, mode, keep, more){
           if (!queued) await refresh(true);
           toast(queued ? 'لا يوجد اتصال: حُفظ الطلب وسيُرسل إلى أ. ' + first(tName(t)) + ' عند عودة الاتصال' : 'تم تسجيل الطلب وإرساله إلى أ. ' + first(tName(t)) + ' ✓');
           if ($('#sheet').classList.contains('open')){ const sc = $('#sheet').scrollTop; openSlot(p, mode, true, true); $('#sheet').scrollTop = sc; }
-          if (IS_MOBILE) location.href = href; else window.open(href, '_blank', 'noopener');
+          openWa(await resolveWa(href));
         })
         .catch(err => { toast(err.message); delete w.dataset.busy; w.textContent = txt; w.style.opacity = ''; });
       return;
