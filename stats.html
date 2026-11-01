@@ -210,7 +210,7 @@ const store = {
   set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} },
   del(k){ try { localStorage.removeItem(k); } catch(e){} }
 };
-const ERR = {locked:'محاولات كثيرة، حاول بعد 15 دقيقة', not_admin:'هذه الصفحة للمشرف فقط', no_session:'انتهت الجلسة، ادخل مرة أخرى'};
+const ERR = {locked:'محاولات كثيرة، حاول بعد 15 دقيقة', not_admin:'هذه الصفحة للمشرف فقط', no_session:'انتهت الجلسة، ادخل مرة أخرى', bad_terms:'بداية الترم الثاني يجب أن تكون بعد الأول'};
 async function rpc(fn, args){
   if (navigator.onLine === false) throw Object.assign(new Error('لا يوجد اتصال بالإنترنت'), {code:'offline'});
   const ac = new AbortController(), tm = setTimeout(() => ac.abort(), 20000); let r;
@@ -256,12 +256,14 @@ function range(k){
   if (k === 'week') return [addDays(td, -d.getDay()), td];
   if (k === 'month') return [iso(new Date(y, m, 1)), td];
   if (k === 'last') return [iso(new Date(y, m-1, 1)), iso(new Date(y, m, 0))];
-  // الترم (تقويم الوزارة 2026/2027): الأول من 6 سبتمبر، الثاني من 31 يناير
-  const T1 = y + '-09-06', T2 = y + '-01-31';
-  if (td >= T1) return [T1, td];
-  if (td >= T2) return [T2, td];
-  return [(y-1) + '-09-06', td];
+  // الترم: المشرف يحدد بدايتي الترمين (app_meta.term1/term2)
+  const T = TERMS();
+  if (td >= T.t2) return [T.t2, td];
+  if (td >= T.t1) return [T.t1, td];
+  return [(+T.t1.slice(0,4) - 1) + T.t1.slice(4), td];
 }
+const TERMS = () => store.get('bs_terms') || {t1:'2026-09-06', t2:'2027-01-31'};
+const fmtY = s => { const d = parseIso(s); return d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear(); };
 const PER = {week:'هذا الأسبوع', month:'هذا الشهر', last:'الشهر الماضي', term:'الترم'};
 function ago(ts){
   if (!ts) return '';
@@ -303,6 +305,7 @@ function renderLogin(msg){
 }
 
 async function load(fromLogin){
+  if (S.per === 'term' && !S.tq){ try { const tm = await rpc('get_terms', {p_token: S.tok}); if (tm) store.set('bs_terms', tm); S.tq = 1; } catch(e){} }
   const [f, t] = range(S.per);
   try { const [d, er] = await Promise.all([rpc('admin_stats', {p_token: S.tok, p_from: f, p_to: t}), rpc('admin_errors', {p_token: S.tok, p_from: f, p_to: t}).catch(() => null)]);
     S.D = d; S.D.errors = er; S.D.from = f; S.D.to = t;
@@ -353,6 +356,7 @@ function render(){
     <div class="top-actions"><a href="./">→ بديل</a><button class="linkbtn" id="rf" style="padding:0">تحديث</button></div>
     ${hdr(`${PER[S.per]} · ${fmtD(D.from)} – ${fmtD(D.to)}`)}
     <div class="chips" id="pc" style="margin-top:12px">${Object.entries(PER).map(([k,v]) => `<button class="chip ${S.per===k?'on':''}" data-p="${k}">${v}</button>`).join('')}</div>
+    ${S.per === 'term' ? `<div class="muted small" style="margin:2px 2px 0">الترم الأول من ${fmtY(TERMS().t1)} · الثاني من ${fmtY(TERMS().t2)} · <button class="linkbtn" id="te" style="padding:0">تعديل</button></div>` : ''}
     <div class="stats">
       ${tile(`${acc}<small> من ${T.length}</small>`, 'فعّلوا حساباتهم', 'user')}
       ${tile(push, 'فعّلوا الإشعارات', 'bell')}
@@ -374,6 +378,7 @@ function render(){
   $('#fc').onclick = e => { const b = e.target.closest('[data-o]'); if (!b) return; S.only = b.dataset.o === '1'; $('#fc').querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === b)); drawTable(); };
   $('#q').oninput = e => { S.q = e.target.value; drawTable(); };
   $('#rf').onclick = () => load();
+  if ($('#te')) $('#te').onclick = editTerms;
   $('#out').onclick = () => { store.del('bs_token'); S.tok = null; S.D = null; renderLogin(); };
   document.querySelector('thead').onclick = e => { const th = e.target.closest('th'); if (!th) return; const k = th.dataset.k;
     if (S.sort === k) S.dir = -S.dir; else { S.sort = k; S.dir = k === 'name' ? 1 : -1; }
@@ -387,6 +392,20 @@ function device(ua){ ua = String(ua || '');
   const br = /Edg\//.test(ua) ? 'Edge' : /SamsungBrowser/.test(ua) ? 'Samsung' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /FxiOS|Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : '';
   return os + (br ? ' · ' + br : ''); }
 const who = t => !t ? 'قبل الدخول' : t === 'admin' ? 'المشرف' : t === 'mgr' ? 'المدير' : tl(t);
+function editTerms(){
+  const T = TERMS();
+  openSheet(`<h2 style="margin-top:4px">بداية الترم</h2>
+    <div class="muted small">من تقويم الوزارة. تُستخدم في فترة «الترم».</div>
+    <label class="small" style="display:block;margin-top:14px">بداية الترم الأول</label><input class="f" type="date" id="t1" dir="ltr" value="${T.t1}">
+    <label class="small" style="display:block;margin-top:10px">بداية الترم الثاني</label><input class="f" type="date" id="t2" dir="ltr" value="${T.t2}">
+    <div class="err" id="ter"></div>
+    <button class="btn acc block" id="ts" style="margin-top:14px">حفظ</button>`);
+  $('#ts').onclick = async () => { const a = $('#t1').value, b = $('#t2').value;
+    if (!a || !b){ $('#ter').textContent = 'اختر التاريخين'; return; }
+    $('#ts').disabled = true;
+    try { const r = await rpc('set_terms', {p_token: S.tok, p_t1: a, p_t2: b}); store.set('bs_terms', r); closeSheet(); toast('تم حفظ بداية الترم'); load(); }
+    catch(e){ $('#ter').textContent = e.message; $('#ts').disabled = false; } };
+}
 function errSection(){
   const E = S.D.errors;
   if (E === null) return '';
