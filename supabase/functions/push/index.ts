@@ -1,4 +1,5 @@
 // إشعارات «بديل»: الـ trigger في قاعدة البيانات بيندهها بعد أي طلب جديد / قبول / اعتذار الكل / إلغاء اتفاق
+// المدير ('mgr') بيوصله: كل اتفاق (تأمين/تبديل) + إلغاؤه + ملخص الساعة 12
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
 
@@ -58,19 +59,24 @@ Deno.serve(async (req) => {
   const d = new Date(r.on_date + "T00:00:00Z");
   const when = `${DAYS[d.getUTCDay()]} ${d.getUTCDate()}/${d.getUTCMonth() + 1}، الحصة ${r.period}${c?.name ? " · الصف " + c.name : ""}`;
   const k = KIND[r.kind] || "";
-  const out: { to: string; title: string; body: string }[] = [];
+  const out: { to: string; title: string; body: string; url?: string }[] = [];
+  // المدير: إشعار فوري بكل اتفاق وبإلغائه (الاسم الأول + العائلة)
+  const full = (id: string) => "أ. " + label((ts || []).find((t: any) => t.id === id)?.name || "");
+  const pair = r.kind === "swap" ? `${full(r.from_teacher)} ↔ ${full(r.accepted_by)}` : `${full(r.accepted_by)} يؤمّن حصة ${full(r.from_teacher)}`;
   if (ev.ev === "new") {
     if (r.status === "pending") out.push({ to: ev.to, title: `طلب ${k} جديد`, body: `${nm(r.from_teacher)} يطلب منك ${k} حصة ${when}` });
   } else if (ev.ev === "accepted") {
     out.push({ to: r.from_teacher, title: "تم قبول طلبك ✓", body: `${nm(r.accepted_by)} قَبِل ${k} حصة ${when}` });
+    out.push({ to: "mgr", title: `تم الاتفاق على ${k}`, body: `${pair}\n${when}`, url: "./" });
   } else if (ev.ev === "declined") {
     out.push({ to: r.from_teacher, title: "اعتذر الزملاء عن طلبك", body: `لم يقبل أحد ${k} حصة ${when}. يمكنك إرسال الطلب لزملاء آخرين.` });
   } else if (ev.ev === "cancelled" && ev.prev === "accepted") {
     const by = r.cancelled_by === "admin" ? "المشرف" : nm(r.cancelled_by);
     for (const t of [r.from_teacher, r.accepted_by]) if (t && t !== r.cancelled_by)
       out.push({ to: t, title: "أُلغي اتفاق", body: `ألغى ${by} ${k} حصة ${when}` });
+    if (r.accepted_by) out.push({ to: "mgr", title: `أُلغي اتفاق ${k}`, body: `${pair}\n${when}\nألغاه ${r.cancelled_by === "admin" ? "المشرف" : full(r.cancelled_by)}`, url: "./" });
   }
   let sent = 0;
-  for (const m of out) sent += await send(m.to, m.title, m.body, "r" + r.id);
+  for (const m of out) sent += await send(m.to, m.title, m.body, (m.to === "mgr" ? "m" : "r") + r.id, m.url);
   return new Response(JSON.stringify({ sent }), { headers: { "Content-Type": "application/json" } });
 });
