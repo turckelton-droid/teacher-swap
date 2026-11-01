@@ -188,6 +188,7 @@ body{padding-bottom:40px}
 .loginbox input.f:focus{border-color:var(--acc)}
 .loginbox .err{color:#ffb37a;text-align:center}
 .role{font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--dk);color:var(--acc);margin-inline-end:6px}
+.emsg{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;background:var(--bg);border-radius:10px;padding:8px 10px;margin-top:8px;white-space:pre-wrap;word-break:break-word;text-align:left}
 .top-actions{display:flex;justify-content:space-between;align-items:center;margin-top:14px}
 .top-actions a{color:var(--ink);font-size:14px;font-weight:500}
 </style>
@@ -217,9 +218,26 @@ async function rpc(fn, args){
     headers:{'Content-Type':'application/json', apikey: SB_KEY, Authorization:'Bearer ' + SB_KEY}, body: JSON.stringify(args || {})}); }
   catch(e){ throw Object.assign(new Error('لا يوجد اتصال بالإنترنت'), {code:'offline'}); } finally { clearTimeout(tm); }
   const txt = await r.text(); let j = null; try { j = txt ? JSON.parse(txt) : null; } catch(e){}
-  if (!r.ok){ const code = (j && j.message) || 'error'; throw Object.assign(new Error(ERR[code] || 'حدث خطأ، حاول مرة أخرى'), {code}); }
+  if (!r.ok){ const code = (j && j.message) || 'error'; if (!ERR[code] && fn !== 'log_error') reportErr('rpc:' + fn, r.status + ' ' + code); throw Object.assign(new Error(ERR[code] || 'حدث خطأ، حاول مرة أخرى'), {code}); }
   return j;
 }
+// ---------- تسجيل الأخطاء (تظهر للمشرف في «إحصائيات بديل») ----------
+const ERR_SENT = {};
+function reportErr(src, msg){
+  try {
+    msg = String(msg || '').slice(0, 500); if (!msg || navigator.onLine === false) return;
+    const k = src + '|' + msg; if ((ERR_SENT[k] = (ERR_SENT[k] || 0) + 1) > 3) return;
+    let tok = null, tab = ''; try { tok = S.tok || null; tab = 'stats'; } catch(_){}
+    fetch(SB_URL + '/rest/v1/rpc/log_error', {method:'POST', keepalive:true,
+      headers:{'Content-Type':'application/json', apikey: SB_KEY, Authorization:'Bearer ' + SB_KEY},
+      body: JSON.stringify({p_token: tok, p_src: src, p_msg: msg, p_ua: navigator.userAgent, p_page: location.pathname + (tab ? '#' + tab : '')})}).catch(() => {});
+  } catch(_){}
+}
+window.addEventListener('error', e => { if (!e.message || /^Script error/i.test(e.message)) return;
+  const st = e.error && e.error.stack ? '\n' + String(e.error.stack).split('\n').slice(1, 4).join('\n') : (e.filename ? ' @' + e.filename.split('/').pop() + ':' + e.lineno : '');
+  reportErr('js', e.message + st); });
+window.addEventListener('unhandledrejection', e => { const r = e.reason; if (r && r.code === 'offline') return;
+  reportErr('promise', (r && (r.stack || r.message)) || String(r)); });
 function toast(m){ const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('on'), 2200); }
 function openSheet(h){ $('#sheetBody').innerHTML = h; $('#sheetBg').style.display = 'block'; requestAnimationFrame(() => $('#sheet').classList.add('open')); }
 function closeSheet(){ $('#sheet').classList.remove('open'); $('#sheetBg').style.display = 'none'; }
@@ -285,7 +303,8 @@ function renderLogin(msg){
 
 async function load(fromLogin){
   const [f, t] = range(S.per);
-  try { S.D = await rpc('admin_stats', {p_token: S.tok, p_from: f, p_to: t}); S.D.from = f; S.D.to = t;
+  try { const [d, er] = await Promise.all([rpc('admin_stats', {p_token: S.tok, p_from: f, p_to: t}), rpc('admin_errors', {p_token: S.tok, p_from: f, p_to: t}).catch(() => null)]);
+    S.D = d; S.D.errors = er; S.D.from = f; S.D.to = t;
     if (fromLogin) store.set('bs_token', S.tok); buildLabels(S.D.teachers); render(); }
   catch(err){
     if (err.code === 'no_session' || err.code === 'not_admin'){ if (store.get('bs_token') === S.tok) store.del('bs_token'); S.tok = null; return renderLogin(err.code === 'not_admin' ? 'هذه الصفحة للمشرف فقط' : ''); }
@@ -347,6 +366,7 @@ function render(){
       <button class="chip ${S.only?'on':''}" data-o="1">المفعّلون (${acc})</button><button class="chip ${!S.only?'on':''}" data-o="0">الكل (${T.length})</button></div>
     <div class="toolbar"><input class="f" id="q" placeholder="ابحث بالاسم…" value="${esc(S.q)}"></div>
     <div class="tbl"><table><thead><tr>${COLS.map(([k,v]) => `<th data-k="${k}" class="${S.sort===k?'on':''}" data-dir="${S.dir < 0 ? '↓' : '↑'}">${v}</th>`).join('')}</tr></thead><tbody id="tb"></tbody></table></div>
+    ${errSection()}
     <div style="margin:28px 0;text-align:center"><button class="linkbtn" id="out">تسجيل الخروج من الإحصائيات</button></div></div>`;
   S.C = C; drawTable();
   $('#pc').onclick = e => { const b = e.target.closest('[data-p]'); if (!b || b.dataset.p === S.per) return; S.per = b.dataset.p; store.set('bs_per', S.per); load(); };
@@ -361,6 +381,20 @@ function render(){
   $('#tb').onclick = e => { const tr = e.target.closest('tr[data-t]'); if (tr) teacherSheet(tr.dataset.t); };
 }
 
+function device(ua){ ua = String(ua || '');
+  const os = /iPhone|iPad|iPod/.test(ua) ? 'آيفون' + ((ua.match(/OS (\d+)/) || [])[1] ? ' iOS ' + ua.match(/OS (\d+)/)[1] : '') : /Android/.test(ua) ? 'أندرويد' : /Windows/.test(ua) ? 'ويندوز' : /Mac/.test(ua) ? 'ماك' : 'جهاز آخر';
+  const br = /Edg\//.test(ua) ? 'Edge' : /SamsungBrowser/.test(ua) ? 'Samsung' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /FxiOS|Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : '';
+  return os + (br ? ' · ' + br : ''); }
+const who = t => !t ? 'قبل الدخول' : t === 'admin' ? 'المشرف' : t === 'mgr' ? 'المدير' : tl(t);
+function errSection(){
+  const E = S.D.errors;
+  if (E === null) return '';
+  return `<div class="sechead"><h2>الأخطاء</h2><span class="muted small">${E.length ? E.length + ' خطأ' : ''}</span></div>
+    ${E.length ? E.map(e => `<div class="card cand"><div class="row"><div class="nm">${esc(who(e.t))}</div><span class="tag ${e.n > 1 ? 'w' : 'g'}">${e.n > 1 ? '×' + e.n : 'مرة'}</span></div>
+      <div class="emsg" dir="ltr">${esc(e.msg)}</div>
+      <div class="why">${ago(e.last)} · ${esc(device(e.ua))} · ${esc(e.src)}${e.page ? ' · ' + esc(e.page) : ''}</div></div>`).join('')
+      : '<div class="card mstat">لا توجد أخطاء في هذه الفترة ✓</div>'}`;
+}
 function drawTable(){
   const D = S.D, A = S.C.A, q = norm(S.q);
   let rows = D.teachers.filter(t => (!S.only || t.pin) && (!q || norm(t.name).includes(q)))

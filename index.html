@@ -324,9 +324,26 @@ async function rpc(fn, args, keep){
     headers:{'Content-Type':'application/json', apikey: SB_KEY, Authorization:'Bearer ' + SB_KEY}, body: JSON.stringify(args || {})}); }
   catch(e){ throw offErr(); } finally { clearTimeout(tm); }
   const txt = await r.text(); let j = null; try { j = txt ? JSON.parse(txt) : null; } catch(e){}
-  if (!r.ok){ const code = (j && j.message) || 'error'; const e = new Error(ERR[code] || ('حدث خطأ، حاول مرة أخرى' + (code !== 'error' ? ' (' + String(code).slice(0, 80) + ')' : ''))); e.code = code; throw e; }
+  if (!r.ok){ const code = (j && j.message) || 'error'; if (!ERR[code]) reportErr('rpc:' + fn, r.status + ' ' + code + (j && j.details ? ' · ' + j.details : '')); const e = new Error(ERR[code] || ('حدث خطأ، حاول مرة أخرى' + (code !== 'error' ? ' (' + String(code).slice(0, 80) + ')' : ''))); e.code = code; throw e; }
   return j;
 }
+// ---------- تسجيل الأخطاء (تظهر للمشرف في «إحصائيات بديل») ----------
+const ERR_SENT = {};
+function reportErr(src, msg){
+  try {
+    msg = String(msg || '').slice(0, 500); if (!msg || navigator.onLine === false) return;
+    const k = src + '|' + msg; if ((ERR_SENT[k] = (ERR_SENT[k] || 0) + 1) > 3) return;
+    let tok = null, tab = ''; try { tok = S.token || null; tab = S.tab || ''; } catch(_){}
+    fetch(SB_URL + '/rest/v1/rpc/log_error', {method:'POST', keepalive:true,
+      headers:{'Content-Type':'application/json', apikey: SB_KEY, Authorization:'Bearer ' + SB_KEY},
+      body: JSON.stringify({p_token: tok, p_src: src, p_msg: msg, p_ua: navigator.userAgent, p_page: location.pathname + (tab ? '#' + tab : '')})}).catch(() => {});
+  } catch(_){}
+}
+window.addEventListener('error', e => { if (!e.message || /^Script error/i.test(e.message)) return;
+  const st = e.error && e.error.stack ? '\n' + String(e.error.stack).split('\n').slice(1, 4).join('\n') : (e.filename ? ' @' + e.filename.split('/').pop() + ':' + e.lineno : '');
+  reportErr('js', e.message + st); });
+window.addEventListener('unhandledrejection', e => { const r = e.reason; if (r && r.code === 'offline') return;
+  reportErr('promise', (r && (r.stack || r.message)) || String(r)); });
 function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('on'), 2200); }
 
 const S = { token: store.get('ts_token'), bundle: store.get('ts_bundle'), I: null, tab: 'day', date: store.get('ts_date') };
