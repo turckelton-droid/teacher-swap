@@ -623,7 +623,7 @@ function route(){
     <button data-t="req" class="${S.tab==='req'?'on':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v12H8l-4 4z"/></svg><span>طلباتي${inc ? `<span class="badge">${inc}</span>` : ''}</span></button>
     <button data-t="opp" class="${S.tab==='opp'?'on':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3l4 4-4 4M21 7H8M7 21l-4-4 4-4M3 17h13"/></svg><span>مواعيد الزملاء${opp ? `<span class="badge">${opp}</span>` : ''}</span></button>
     <button data-t="me" class="${S.tab==='me'?'on':''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.5-6 8-6s7 2 8 6"/></svg>حالتي</button>
-  </div><div class="credit">بديل © 2026 — أ. أحمد جمال</div></nav>`;
+  </div><div class="credit">بديل © 2026 — أحمد جمال</div></nav>`;
   document.querySelector('nav.tabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.tab = b.dataset.t; route(); };
   ({day: renderDay, req: renderReq, opp: renderOpp, me: renderMe})[S.tab]();
 }
@@ -1017,8 +1017,8 @@ function renderAdmin(){
 // ---------- دعوة المعلمين (المرحلة 12) ----------
 const SITE = 'https://teacher-swap.pages.dev';
 const INV_MSG = {
-  join: n => `السلام عليكم أ.${n}، عساك بخير.\nنستخدم في المدرسة برنامج «بديل» لتأمين الحصص وتبديلها بين الزملاء بسهولة.\nالرابط: ${SITE}\nاكتب رقم الواتس الخاص بك، ثم اختر رمزًا سريًا من 4 أرقام.\nبعد الدخول فعّل الإشعارات ليصلك أي طلب فورًا.\n— أ. أحمد جمال`,
-  push: n => `السلام عليكم أ.${n}، عساك بخير.\nشكرًا لاستخدامك «بديل». فضلًا فعّل الإشعارات من داخل البرنامج ليصلك أي طلب تأمين أو تبديل فورًا.\nفي الآيفون: أضف البرنامج إلى الشاشة الرئيسية أولًا (مشاركة ← إضافة إلى الشاشة الرئيسية)، ثم افتحه منها وفعّل الإشعارات.\nالرابط: ${SITE}\n— أ. أحمد جمال`
+  join: n => `السلام عليكم أ.${n}، عساك بخير.\nنستخدم في المدرسة برنامج «بديل» لتأمين الحصص وتبديلها بين الزملاء بسهولة.\nالرابط: ${SITE}\nاكتب رقم الواتس الخاص بك، ثم اختر رمزًا سريًا من 4 أرقام.\nبعد الدخول فعّل الإشعارات ليصلك أي طلب فورًا.\nبديل © 2026 - أحمد جمال`,
+  push: n => `السلام عليكم أ.${n}، عساك بخير.\nشكرًا لاستخدامك «بديل». فضلًا فعّل الإشعارات من داخل البرنامج ليصلك أي طلب تأمين أو تبديل فورًا.\nفي الآيفون: افتح الرابط من Safari، ثم مشاركة ← «إضافة إلى الشاشة الرئيسية»، وافتح البرنامج من أيقونته وفعّل الإشعارات.\nفي الأندرويد: افتح الرابط من Chrome، ثم القائمة ⋮ ← «إضافة إلى الشاشة الرئيسية» أو «تثبيت التطبيق»، وافتحه من أيقونته وفعّل الإشعارات.\nالرابط: ${SITE}\nبديل © 2026 - أحمد جمال`
 };
 let IVF = 'join';
 function invGroups(){ const B = S.bundle, iv = B.invites || {push:[], inv:{}}, ps = new Set(iv.push || []);
