@@ -136,6 +136,9 @@ nav.tabs button.on .badge{background:var(--acc);color:var(--dk)}
 .pin span{width:16px;height:16px;border-radius:50%;border:2px solid var(--acc)}
 .pin span.on{background:var(--acc)}
 .pin.dig span{width:40px;height:50px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;color:var(--dk)}
+.pin.d8{gap:6px}
+.pin.d8 span{width:32px;height:44px;font-size:22px;border-radius:10px}
+.pin.d8 span:nth-child(4){margin-right:8px}
 .steps{display:flex;gap:6px;justify-content:center;margin:10px 0 14px;direction:ltr}
 .steps span{width:26px;height:5px;border-radius:3px;background:#4a4a46}
 .steps span.on{background:var(--acc)}
@@ -477,10 +480,10 @@ async function refresh(silent){
 function logout(){ dropPush(); S.token = null; S.bundle = null; S.I = null; store.del('ts_token'); store.del('ts_bundle'); store.del('ts_ph'); for (const k in PH) if (k !== '_d') delete PH[k]; store.del(OB_KEY); updNet(); renderLogin(); }
 
 // ---------- Login ----------
-let LOGIN = {list: [], pick: null, mode: 'list', pin: '', pin2: '', phone: ''};
+let LOGIN = {list: [], pick: null, mode: 'phone', pin: '', pin2: '', phone: '', ph8: ''};
 async function renderLogin(){
   document.body.style.paddingBottom = '16px';
-  $('#app').innerHTML = `<div class="wrap">${hdr('سجّل دخولك', 'اختر اسمك ثم أدخل رمزك السري')}<div id="lg"></div></div>`;
+  $('#app').innerHTML = `<div class="wrap">${hdr('سجّل دخولك', 'اكتب رقم واتسابك ثم رمزك السري')}<div id="lg"></div></div>`;
   if (!LOGIN.list.length){
     $('#lg').innerHTML = '<div class="empty">جاري التحميل…</div>';
     try { LOGIN.list = await rpc('list_teachers'); } catch(e){ $('#lg').innerHTML = '<div class="empty">لا يوجد اتصال بالإنترنت</div>'; return; }
@@ -489,15 +492,44 @@ async function renderLogin(){
 }
 function drawLogin(){
   const L = LOGIN, el = $('#lg');
-  if (L.mode === 'list'){
+  if (L.mode === 'phone' && L.list.length){
+    // الدخول برقم الواتساب: 8 أرقام ← يظهر الاسم ← الرمز (أو إنشاء رمز أول مرة)
+    const v = L.ph8;
+    el.innerHTML = `<div class="notch pinbox"><div class="who">رقم واتسابك</div><div class="muted small">اكتب رقمك المكوّن من 8 أرقام</div>
+      <div class="pin dig d8">${Array.from({length: 8}, (_, i) => `<span class="${i < v.length ? 'on' : ''}">${v[i] || ''}</span>`).join('')}</div>
+      <div class="pad">${[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map(k => k === '' ? '<span></span>' : `<button data-k="${k}">${k}</button>`).join('')}</div>
+      <div class="err" id="er">${L.err || ''}</div></div>
+      <div style="text-align:center;margin-top:10px"><button class="linkbtn" id="byname">الدخول بالاسم</button> · <button class="linkbtn" id="adm">دخول المشرف / المدير</button></div>`;
+    L.err = '';
+    $('#byname').onclick = () => { L.mode = 'list'; L.ph8 = ''; drawLogin(); };
+    $('#adm').onclick = () => { L.mode = 'admin'; L.pin = ''; L.ph8 = ''; drawLogin(); };
+    el.querySelector('.pad').onclick = async e => {
+      const k = e.target.dataset && e.target.dataset.k; if (k === undefined || L.busy) return;
+      L.ph8 = k === '⌫' ? L.ph8.slice(0, -1) : L.ph8.length < 8 ? L.ph8 + k : L.ph8;
+      if (L.ph8.length < 8) return drawLogin();
+      drawLogin(); $('#er').textContent = 'جارٍ البحث…'; L.busy = true;
+      try {
+        const id = await rpc('find_by_phone', {p_phone: L.ph8});
+        const t = id && L.list.find(x => x.id === id);
+        if (!t){ L.ph8 = ''; L.err = 'هذا الرقم غير مسجّل. تأكد منه، أو اضغط «الدخول بالاسم»'; return drawLogin(); }
+        L.pick = t; L.viaPhone = true; L.pin = ''; L.pin2 = ''; L.err = '';
+        if (t.has_pin) L.mode = 'pin'; else { L.mode = 'setup'; L.phone = L.ph8.slice(-4); L.step = 1; }
+        L.ph8 = ''; drawLogin();
+      } catch(err){ L.ph8 = ''; L.err = err.message; drawLogin(); }
+      finally { L.busy = false; }
+    };
+    return;
+  }
+  if (L.mode === 'list' || L.mode === 'phone'){
     if (!L.list.length){ el.innerHTML = `<div class="empty">لم يُرفع الجدول بعد. يُرجى من المشرف رفع ملف الجدول أولًا.</div><div style="text-align:center"><button class="linkbtn" id="adm">دخول المشرف</button></div>`; $('#adm').onclick = () => { L.mode='admin'; L.pin=''; drawLogin(); }; return; }
     el.innerHTML = `<label class="l" for="q">ابحث باسمك</label><input class="f" id="q" placeholder="ابحث بالاسم…" autocomplete="off">
       <div class="card list" id="names" style="margin-top:10px;max-height:60vh;overflow:auto"></div>
-      <div style="text-align:center;margin-top:10px"><button class="linkbtn" id="adm">دخول المشرف / المدير</button></div>`;
+      <div style="text-align:center;margin-top:10px"><button class="linkbtn" id="byph">الدخول برقم الواتساب</button> · <button class="linkbtn" id="adm">دخول المشرف / المدير</button></div>`;
     const draw = q => { const rows = L.list.filter(t => !q || norm(t.name).includes(norm(q))).slice(0, 80);
       $('#names').innerHTML = rows.map(t => `<div class="it" data-id="${esc(t.id)}"><span>${esc(t.name)}${t.has_pin ? '' : ' <span class="tag">جديد</span>'}</span><span class="go">اختيار</span></div>`).join('') || '<div class="empty">لا يوجد اسم مطابق</div>'; };
     draw(''); $('#q').oninput = e => draw(e.target.value.trim());
-    $('#names').onclick = e => { const it = e.target.closest('.it'); if (!it) return; L.pick = L.list.find(t => t.id === it.dataset.id); L.mode = L.pick.has_pin ? 'pin' : 'setup'; L.pin=''; L.pin2=''; L.phone=''; L.step=0; L.err=''; drawLogin(); };
+    $('#byph').onclick = () => { L.mode = 'phone'; drawLogin(); };
+    $('#names').onclick = e => { const it = e.target.closest('.it'); if (!it) return; L.pick = L.list.find(t => t.id === it.dataset.id); L.mode = L.pick.has_pin ? 'pin' : 'setup'; L.viaPhone = false; L.pin=''; L.pin2=''; L.phone=''; L.step=0; L.err=''; drawLogin(); };
     $('#adm').onclick = () => { L.mode='admin'; L.pin=''; drawLogin(); };
     return;
   }
@@ -508,7 +540,7 @@ function drawLogin(){
       <div class="pin">${Array.from({length: len}, (_, i) => `<span class="${i < L.pin.length ? 'on' : ''}"></span>`).join('')}</div>
       <div class="pad">${[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map(k => k === '' ? '<span></span>' : `<button data-k="${k}">${k}</button>`).join('')}</div>
       <div class="err" id="er"></div>${isAdm ? '' : '<button class="linkbtn" id="forgot">نسيت الرمز؟</button>'}<button class="linkbtn" id="back">رجوع</button></div>`;
-    $('#back').onclick = () => { L.mode='list'; drawLogin(); };
+    $('#back').onclick = () => { L.mode = L.viaPhone || isAdm ? 'phone' : 'list'; drawLogin(); };
     if ($('#forgot')) $('#forgot').onclick = () => { L.mode='reset'; drawLogin(); };
     el.querySelector('.pad').onclick = async e => {
       const k = e.target.dataset && e.target.dataset.k; if (k === undefined) return;
@@ -558,7 +590,7 @@ function drawLogin(){
       <div class="err" id="er">${L.err || ''}</div><button class="linkbtn" id="back">رجوع</button></div>`;
     L.err = '';
     const key = ['phone', 'pin', 'pin2'][st];
-    $('#back').onclick = () => { if (st > 0){ L.step = st - 1; L[key] = ''; if (st === 2) L.pin = ''; } else { L.mode = 'list'; L.phone = ''; } drawLogin(); };
+    $('#back').onclick = () => { if (st > (L.viaPhone ? 1 : 0)){ L.step = st - 1; L[key] = ''; if (st === 2) L.pin = ''; } else { L.mode = L.viaPhone ? 'phone' : 'list'; L.phone = ''; L.pin = ''; } drawLogin(); };
     el.querySelector('.pad').onclick = async e => {
       const k = e.target.dataset && e.target.dataset.k; if (k === undefined || L.busy) return;
       let v = L[key] || ''; if (k === '⌫') v = v.slice(0, -1); else if (v.length < 4) v += k; L[key] = v;
@@ -567,14 +599,14 @@ function drawLogin(){
       if (L.pin !== L.pin2){ L.pin = ''; L.pin2 = ''; L.step = 1; L.err = 'الرمزان غير متطابقين، اختر الرمز من جديد'; return drawLogin(); }
       drawLogin(); $('#er').textContent = 'جارٍ التفعيل…'; L.busy = true;
       try { const tok = await rpc('setup_account', {p_teacher: L.pick.id, p_pin: L.pin, p_phone: L.phone});
-        if (!tok){ L.phone = ''; L.pin = ''; L.pin2 = ''; L.step = 0; L.err = 'الأرقام غير مطابقة للرقم المسجّل باسمك. تأكد منها، أو تواصل مع المشرف'; return drawLogin(); }
+        if (!tok){ L.phone = ''; L.pin = ''; L.pin2 = ''; L.step = 0; if (L.viaPhone) L.mode = 'phone'; L.err = 'الأرقام غير مطابقة للرقم المسجّل باسمك. تأكد منها، أو تواصل مع المشرف'; return drawLogin(); }
         L.phone = ''; L.step = 0; await enter(tok); }
       catch(err){ L.pin2 = ''; L.err = err.message; drawLogin(); }
       finally { L.busy = false; }
     };
   }
 }
-async function enter(tok){ S.token = tok; store.set('ts_token', tok); LOGIN.mode = 'list'; LOGIN.pin = ''; await refresh(); if (S.bundle){ route(); syncPush(); } }
+async function enter(tok){ S.token = tok; store.set('ts_token', tok); LOGIN.mode = 'phone'; LOGIN.pin = ''; await refresh(); if (S.bundle){ route(); syncPush(); } }
 
 // ---------- Main ----------
 function route(){
@@ -985,7 +1017,7 @@ function renderAdmin(){
 // ---------- دعوة المعلمين (المرحلة 12) ----------
 const SITE = 'https://teacher-swap.pages.dev';
 const INV_MSG = {
-  join: n => `السلام عليكم أ.${n}، عساك بخير.\nنستخدم في المدرسة برنامج «بديل» لتأمين الحصص وتبديلها بين الزملاء بسهولة.\nالرابط: ${SITE}\nاختر اسمك، واكتب آخر 4 أرقام من رقم واتسابك، ثم اختر رمزًا سريًا من 4 أرقام.\nبعد الدخول فعّل الإشعارات ليصلك أي طلب فورًا.\n— أ. أحمد جمال`,
+  join: n => `السلام عليكم أ.${n}، عساك بخير.\nنستخدم في المدرسة برنامج «بديل» لتأمين الحصص وتبديلها بين الزملاء بسهولة.\nالرابط: ${SITE}\nاكتب رقم واتسابك، ثم اختر رمزًا سريًا من 4 أرقام.\nبعد الدخول فعّل الإشعارات ليصلك أي طلب فورًا.\n— أ. أحمد جمال`,
   push: n => `السلام عليكم أ.${n}، عساك بخير.\nشكرًا لاستخدامك «بديل». فضلًا فعّل الإشعارات من داخل البرنامج ليصلك أي طلب تأمين أو تبديل فورًا.\nفي الآيفون: أضف البرنامج إلى الشاشة الرئيسية أولًا (مشاركة ← إضافة إلى الشاشة الرئيسية)، ثم افتحه منها وفعّل الإشعارات.\nالرابط: ${SITE}\n— أ. أحمد جمال`
 };
 let IVF = 'join';
