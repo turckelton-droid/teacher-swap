@@ -483,7 +483,7 @@ function logout(){ dropPush(); S.token = null; S.bundle = null; S.I = null; stor
 let LOGIN = {list: [], pick: null, mode: 'phone', pin: '', pin2: '', phone: '', ph8: ''};
 async function renderLogin(){
   document.body.style.paddingBottom = '16px';
-  $('#app').innerHTML = `<div class="wrap">${hdr('سجّل دخولك', 'اكتب رقم واتسابك ثم رمزك السري')}<div id="lg"></div></div>`;
+  $('#app').innerHTML = `<div class="wrap">${hdr('سجّل دخولك', 'اكتب رقم الواتس الخاص بك ثم رمزك السري')}<div id="lg"></div></div>`;
   if (!LOGIN.list.length){
     $('#lg').innerHTML = '<div class="empty">جاري التحميل…</div>';
     try { LOGIN.list = await rpc('list_teachers'); } catch(e){ $('#lg').innerHTML = '<div class="empty">لا يوجد اتصال بالإنترنت</div>'; return; }
@@ -495,7 +495,7 @@ function drawLogin(){
   if (L.mode === 'phone' && L.list.length){
     // الدخول برقم الواتساب: 8 أرقام ← يظهر الاسم ← الرمز (أو إنشاء رمز أول مرة)
     const v = L.ph8;
-    el.innerHTML = `<div class="notch pinbox"><div class="who">رقم واتسابك</div><div class="muted small">اكتب رقمك المكوّن من 8 أرقام</div>
+    el.innerHTML = `<div class="notch pinbox"><div class="who">رقم الواتس الخاص بك</div><div class="muted small">اكتب رقمك المكوّن من 8 أرقام</div>
       <div class="pin dig d8">${Array.from({length: 8}, (_, i) => `<span class="${i < v.length ? 'on' : ''}">${v[i] || ''}</span>`).join('')}</div>
       <div class="pad">${[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map(k => k === '' ? '<span></span>' : `<button data-k="${k}">${k}</button>`).join('')}</div>
       <div class="err" id="er">${L.err || ''}</div></div>
@@ -581,7 +581,7 @@ function drawLogin(){
   if (L.mode === 'setup'){
     // الدخول الأول خطوة خطوة بلوحة أرقام كبيرة: آخر 4 أرقام الواتساب ← الرمز ← تأكيده
     const st = L.step || 0, val = [L.phone, L.pin, L.pin2][st] || '';
-    const T = [['آخر 4 أرقام من رقم واتسابك', 'للتأكد أن الحساب حسابك'], ['اختر رمزًا سريًا من 4 أرقام', 'ستدخل به كل مرة، فاختر رمزًا تتذكره'], ['اكتب الرمز مرة أخرى', 'للتأكد من الرمز']][st];
+    const T = [['آخر 4 أرقام من رقم الواتس الخاص بك', 'للتأكد أن الحساب حسابك'], ['اختر رمزًا سريًا من 4 أرقام', 'ستدخل به كل مرة، فاختر رمزًا تتذكره'], ['اكتب الرمز مرة أخرى', 'للتأكد من الرمز']][st];
     el.innerHTML = `<div class="notch pinbox"><div class="who">${esc(L.pick.name)}</div>
       <div class="steps">${[0,1,2].map(i => `<span class="${i <= st ? 'on' : ''}"></span>`).join('')}</div>
       <div style="font-size:19px;font-weight:700">${T[0]}</div><div class="muted small">${T[1]}</div>
@@ -1017,7 +1017,7 @@ function renderAdmin(){
 // ---------- دعوة المعلمين (المرحلة 12) ----------
 const SITE = 'https://teacher-swap.pages.dev';
 const INV_MSG = {
-  join: n => `السلام عليكم أ.${n}، عساك بخير.\nنستخدم في المدرسة برنامج «بديل» لتأمين الحصص وتبديلها بين الزملاء بسهولة.\nالرابط: ${SITE}\nاكتب رقم واتسابك، ثم اختر رمزًا سريًا من 4 أرقام.\nبعد الدخول فعّل الإشعارات ليصلك أي طلب فورًا.\n— أ. أحمد جمال`,
+  join: n => `السلام عليكم أ.${n}، عساك بخير.\nنستخدم في المدرسة برنامج «بديل» لتأمين الحصص وتبديلها بين الزملاء بسهولة.\nالرابط: ${SITE}\nاكتب رقم الواتس الخاص بك، ثم اختر رمزًا سريًا من 4 أرقام.\nبعد الدخول فعّل الإشعارات ليصلك أي طلب فورًا.\n— أ. أحمد جمال`,
   push: n => `السلام عليكم أ.${n}، عساك بخير.\nشكرًا لاستخدامك «بديل». فضلًا فعّل الإشعارات من داخل البرنامج ليصلك أي طلب تأمين أو تبديل فورًا.\nفي الآيفون: أضف البرنامج إلى الشاشة الرئيسية أولًا (مشاركة ← إضافة إلى الشاشة الرئيسية)، ثم افتحه منها وفعّل الإشعارات.\nالرابط: ${SITE}\n— أ. أحمد جمال`
 };
 let IVF = 'join';
