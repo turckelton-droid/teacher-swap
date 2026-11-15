@@ -1,5 +1,6 @@
 // إشعارات «بديل»: الـ trigger في قاعدة البيانات بيندهها بعد أي طلب جديد / قبول / اعتذار الكل / إلغاء اتفاق
 // المدير ('mgr') بيوصله: كل اتفاق (تأمين/تبديل) + إلغاؤه + ملخص الساعة 12
+// تذكير الحصة (ev 'remind'): cron كل دقيقة بيندهه قبل الحصة المتفق عليها بـ 5 دقائق — لـ accepted_by بس
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3.6.7";
 
@@ -9,12 +10,12 @@ const KIND: Record<string, string> = { cover: "تأمين", swap: "تبديل" }
 const first = (n: string) => { const w = String(n || "").trim().split(/\s+/); return /^(عبد|عبدال|أبو|ابو)$/.test(w[0]) && w[1] ? w[0] + " " + w[1] : w[0]; };
 let CFG: any = null;
 
-async function send(to: string, title: string, body: string, tag: string, url = "./?tab=req") {
+async function send(to: string, title: string, body: string, tag: string, url = "./?tab=req", ttl = 6 * 3600) {
   let n = 0;
   const { data: subs } = await db.from("push_subs").select("endpoint,sub").eq("teacher_id", to);
   for (const s of subs || []) {
     try {
-      await webpush.sendNotification(s.sub, JSON.stringify({ title, body, tag, url }), { TTL: 6 * 3600, urgency: "high" });
+      await webpush.sendNotification(s.sub, JSON.stringify({ title, body, tag, url }), { TTL: ttl, urgency: "high" });
       n++;
     } catch (e: any) {
       if (e?.statusCode === 404 || e?.statusCode === 410) await db.from("push_subs").delete().eq("endpoint", s.endpoint);
@@ -60,6 +61,14 @@ Deno.serve(async (req) => {
   const when = `${DAYS[d.getUTCDay()]} ${d.getUTCDate()}/${d.getUTCMonth() + 1}، الحصة ${r.period}${c?.name ? " · الصف " + c.name : ""}`;
   const k = KIND[r.kind] || "";
   const out: { to: string; title: string; body: string; url?: string }[] = [];
+  if (ev.ev === "remind") {
+    if (r.status !== "accepted" || !r.accepted_by) return new Response("skip");
+    const m = Math.max(1, Number(ev.min) || 5);
+    const mt = m === 1 ? "دقيقة" : m === 2 ? "دقيقتين" : m <= 10 ? `${m} دقائق` : `${m} دقيقة`;
+    const body = `الحصة ${r.period}${c?.name ? " · الصف " + c.name : ""} — بدلًا من ${nm(r.from_teacher)}`;
+    const sent = await send(r.accepted_by, `تذكير: حصة ${k} بعد ${mt}`, body, "rm" + r.id, "./?tab=req", 15 * 60);
+    return new Response(JSON.stringify({ sent }), { headers: { "Content-Type": "application/json" } });
+  }
   // المدير: إشعار فوري بكل اتفاق وبإلغائه (الاسم الأول + العائلة)
   const full = (id: string) => "أ. " + label((ts || []).find((t: any) => t.id === id)?.name || "");
   const pair = r.kind === "swap" ? `${full(r.from_teacher)} ↔ ${full(r.accepted_by)}` : `${full(r.accepted_by)} يؤمّن حصة ${full(r.from_teacher)}`;
