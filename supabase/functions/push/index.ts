@@ -50,6 +50,8 @@ Deno.serve(async (req) => {
   const ev = await req.json();
   webpush.setVapidDetails("https://teacher-swap.pages.dev", CFG.vapid_pub, CFG.vapid_priv);
   if (ev.ev === "summary") return new Response(JSON.stringify({ sent: await summary(ev.date) }));
+  // تذكير تجريبي (من السيرفر بس، بالـ hook secret): {ev:'test', to, demo:'remind'}
+  if (ev.ev === "test" && ev.demo === "remind") return new Response(JSON.stringify({ sent: await send(ev.to, "تذكير: حصة تأمين بعد 5 دقائق", "الحصة 3 · الصف 9/3 — بدلًا من أ. أحمد (تذكير تجريبي)", "rmdemo", "./?tab=req", 15 * 60) }));
   if (ev.ev === "test") return new Response(JSON.stringify({ sent: await send(ev.to, "تم تفعيل الإشعارات ✓", "ستصلك هنا تنبيهات الطلبات في «بديل».", "test") }));
   const { data: r } = await db.from("requests").select("*").eq("id", ev.id).single();
   if (!r) return new Response("gone");
